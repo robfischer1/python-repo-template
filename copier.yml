@@ -39,3 +39,15 @@ year:
   type: int
   help: Copyright year
   default: 2026
+
+# Init-only setup, run by `copier copy --trust` (gated to copy, skipped on
+# `copier update`). Leaves a ready git repo with a synced env + installed hooks.
+_tasks:
+  - command: uv sync --extra dev
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: git init -q
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: uv run pre-commit install
+    when: "{{ _copier_operation == 'copy' }}"
