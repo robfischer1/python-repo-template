@@ -1,0 +1,13 @@
+# Per-service Docker Compose stack for {{ service_name }} (nas01).
+# State (if any) externalizes to a named volume or the nas01 Postgres by URL —
+# add a `volumes:` mount and a DATABASE_URL env when the service becomes stateful.
+services:
+  {{ service_name }}:
+    image: ghcr.io/robfischer1/{{ service_name }}:latest
+    build: .
+    environment:
+      PORT: "{{ port }}"
+      HOST: "0.0.0.0"
+    ports:
+      - "{{ port }}:{{ port }}"
+    restart: unless-stopped

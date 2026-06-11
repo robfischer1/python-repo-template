@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime state (externalize to a volume / backing service — never commit)
+*.db
+*.sqlite
+*.sqlite3
+*-wal
+*-shm
+*.log
+*.gz
+
+# Local env / secrets
+.env
+.env.*

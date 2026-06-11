@@ -1,0 +1,47 @@
+# Canonical .dockerignore for a Forge service repo (SRSC #1314).
+# Keeps the build context lean and ensures no host state / secrets / venv leak
+# into the image. Generic across services — adopt as-is.
+
+# Version control / CI
+.git
+.github
+
+# Local virtualenv + caches (the image builds its own .venv)
+.venv
+**/__pycache__
+*.py[cod]
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+# Runtime state must never enter the image (externalize to a volume / Postgres)
+*.db
+*.sqlite
+*.sqlite3
+*-wal
+*-shm
+*.log
+*.gz
+
+# Secrets / local env
+.env
+.env.*
+*.pem
+.secrets.baseline
+
+# Editor / OS noise
+.idea
+.vscode
+.DS_Store
+
+# Docs / dev-only artifacts not needed at runtime
+docs
+benchmarks
+tests
+
+# The AI governance layer (poured separately; not part of the runtime image)
+.claude
+.gemini
+AGENTS.md
+CLAUDE.md
+GEMINI.md

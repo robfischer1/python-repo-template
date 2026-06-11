@@ -1,0 +1,91 @@
+[project]
+name = "{{ service_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "{{ author_name }}" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mcp[cli]>=1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/robfischer1/{{ service_name }}"
+
+[project.scripts]
+{{ service_name }} = "{{ package_name }}.server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pyright==1.1.410",
+    "pre-commit>=3.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{ package_name }}"]
+
+# Lint / type / test baseline — the canonical Forge policy
+# (furnace/source/templates/pyproject.toml; furnace code-standards block).
+[tool.ruff]
+target-version = "py312"
+line-length = 80
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM", "ISC", "Q", "E501",
+    "D203", "D213",
+    "ANN001", "ANN002", "ANN003", "ANN202", "ANN204", "ANN401",
+    "EM", "TRY003",
+    "C901", "PLR09", "PLR2004",
+    "T201", "PLC0415", "FBT", "SLF001",
+    "PLW0603", "TRY300", "TRY301", "ARG002",
+    "PERF401", "PERF403", "A002", "EXE",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "PT", "ANN", "D", "ARG", "PLR2004", "SLF001", "INP001", "ERA001", "E402", "PLW1510"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+warn_return_any = false
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["**/__pycache__", ".venv"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+reportUnnecessaryTypeIgnoreComment = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

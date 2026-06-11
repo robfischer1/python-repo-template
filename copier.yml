@@ -1,0 +1,41 @@
+# Service-repo copier template — stamps a standard, container-ready Forge MCP
+# service (the formalized vault-mcp shape). Realizes the service-repo standard:
+# furnace/docs/service-repo-standard.md. Pure code — the AI/governance layer is
+# poured separately by furnace (decoupled by design).
+
+_subdirectory: template
+_min_copier_version: "9.0.0"
+
+project_name:
+  type: str
+  help: Human-readable project name (e.g. "Widget MCP")
+
+package_name:
+  type: str
+  help: Importable package name (snake_case)
+  default: "{{ project_name | lower | replace(' ', '_') | replace('-', '_') }}"
+
+service_name:
+  type: str
+  help: Console-script / distribution name (kebab-case)
+  default: "{{ project_name | lower | replace(' ', '-') | replace('_', '-') }}"
+
+description:
+  type: str
+  help: One-line service description
+  default: A standard Forge MCP service.
+
+port:
+  type: int
+  help: Default streamable-HTTP listen port
+  default: 8000
+
+author_name:
+  type: str
+  help: Copyright holder / author
+  default: Rob Fischer
+
+year:
+  type: int
+  help: Copyright year
+  default: 2026

@@ -1,0 +1,36 @@
+# {{ project_name }}
+
+{{ description }}
+
+A standard Forge MCP service — streamable-HTTP, stateless, config-via-env.
+
+## Run
+
+```bash
+uv sync
+uv run {{ service_name }}     # streamable-HTTP on 0.0.0.0:$PORT (default {{ port }})
+```
+
+## Configure (env)
+
+| Var | Default | Purpose |
+| :-- | :-- | :-- |
+| `PORT` | `{{ port }}` | streamable-HTTP listen port |
+| `HOST` | `0.0.0.0` | bind host |
+
+## Develop
+
+```bash
+uv sync --extra dev
+uv run ruff check .
+uv run mypy src tests
+uv run pyright
+uv run pytest
+```
+
+## Container
+
+```bash
+docker build -t {{ service_name }} .
+docker run --rm -e PORT={{ port }} -p {{ port }}:{{ port }} {{ service_name }}
+```
