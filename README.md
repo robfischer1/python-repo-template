@@ -32,3 +32,4 @@ copier update      # 3-way merges template changes, preserving local edits
 - Lint/type/test baseline (ruff `select=ALL`, mypy strict, pyright strict, pytest)
 - The community publish-set (README, LICENSE, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG)
 - A CI workflow (Python 3.12 / 3.13)
+- GitHub triage set: issue forms (bug / feature), a PR template, and Dependabot (weekly `uv` + actions updates)
