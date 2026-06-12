@@ -23,3 +23,6 @@ build/
 # Local env / secrets
 .env
 .env.*
+
+# furnace deploy manifest — local deploy state, regenerated on each deploy
+.furnace/deployed.json

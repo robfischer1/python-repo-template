@@ -1,6 +1,11 @@
 # Pre-commit hooks: lint (ruff), secret scan (detect-secrets), basic hygiene.
 # Install once: `pre-commit install`. The .secrets.baseline is generated on first
 # scaffold (copier _tasks) via `detect-secrets scan > .secrets.baseline`.
+#
+# furnace owns .claude/ .specify/ .furnace/ (deployed by `furnace stoke`/`quench`).
+# Exclude that managed surface from every hook: hygiene fixers would mangle the
+# deployed content into drift, and detect-secrets trips on the manifest's hashes.
+exclude: '^\.(claude|specify|furnace)/'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.16
