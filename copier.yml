@@ -45,6 +45,14 @@ year:
 _tasks:
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
+  # Forgejo is git-primary (origin); GitHub is the push-mirror target — the
+  # standard Forge remote pattern. The remote repo must still be created on
+  # Forgejo first (push-to-create is disabled instance-wide); these only wire
+  # the local remotes to the convention so `git push -u origin main` is ready.
+  - command: git remote add origin https://forgejo.notusmi.com/rob/{{ service_name }}.git
+    when: "{{ _copier_operation == 'copy' }}"
+  - command: git remote add github https://github.com/robfischer1/{{ service_name }}.git
+    when: "{{ _copier_operation == 'copy' }}"
   - command: uv sync --extra dev
     when: "{{ _copier_operation == 'copy' }}"
   - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
