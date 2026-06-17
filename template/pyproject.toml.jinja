@@ -12,6 +12,9 @@ classifiers = [
 ]
 dependencies = [
     "mcp[cli]>=1.0",
+{%- if core_backed %}
+    "mnemosyne-core>=0.1.0",
+{%- endif %}
 ]
 
 [project.urls]
@@ -89,3 +92,8 @@ reportMissingTypeStubs = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+{%- if core_backed %}
+
+[tool.uv.sources]
+mnemosyne-core = { path = "../mnemosyne_core", editable = true }
+{%- endif %}

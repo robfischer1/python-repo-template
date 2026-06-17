@@ -15,6 +15,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+{%- if core_backed %}
+
+      - name: Checkout mnemosyne-core (public)
+        uses: actions/checkout@v4
+        with:
+          repository: robfischer1/mnemosyne_core
+          ref: {{ core_base_tag }}
+          path: ../mnemosyne_core
+{%- endif %}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -23,7 +32,11 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
+{%- if core_backed %}
+        run: uv sync --all-extras --no-editable
+{%- else %}
         run: uv sync --all-extras
+{%- endif %}
 
       - name: Lint + hygiene (same hooks as local pre-commit)
         run: uv run pre-commit run --all-files --show-diff-on-failure

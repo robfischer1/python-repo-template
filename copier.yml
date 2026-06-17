@@ -25,6 +25,17 @@ description:
   help: One-line service description
   default: A standard Forge MCP service.
 
+core_backed:
+  type: bool
+  help: "Builds FROM mnemosyne-core-base (baked core + schema). For constellation stars."
+  default: false
+
+core_base_tag:
+  type: str
+  help: "mnemosyne-core-base image tag (e.g. v0.1.0)"
+  default: v0.1.0
+  when: "{{ core_backed }}"
+
 port:
   type: int
   help: Default streamable-HTTP listen port
