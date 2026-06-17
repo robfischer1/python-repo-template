@@ -13,7 +13,7 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.0",
 {%- if core_backed %}
-    "mnemosyne-core>=0.1.0",
+    "mnemosyne-core>=0.2.0",
 {%- endif %}
 ]
 
@@ -94,6 +94,9 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 {%- if core_backed %}
 
+# Core is the public git pin (the #1300 standard); the base image bakes the
+# private schema. For local co-dev against an adjacent checkout, override with
+# `uv pip install -e ../mnemosyne_core` after `uv sync`.
 [tool.uv.sources]
-mnemosyne-core = { path = "../mnemosyne_core", editable = true }
+mnemosyne-core = { git = "https://github.com/robfischer1/mnemosyne_core.git", tag = "{{ core_version }}" }
 {%- endif %}

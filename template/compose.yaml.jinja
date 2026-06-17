@@ -1,6 +1,10 @@
 {%- if core_backed %}
 # Per-service Docker Compose stack for {{ service_name }} (nas01, constellation star).
-# Joins the mnemosyne internal network; PG by env URL; no host port publish.
+#
+# INTERIM (until the Hades gateway / MP-B lands): joins mnemosyne-net AND stays
+# on the project default network with its host port published, so consumers keep
+# reaching it. When MP-B is live, drop `ports:` + the `default` network entry
+# -> internal-only (reachable only via the edge).
 services:
   {{ service_name }}:
     image: ghcr.io/robfischer1/{{ service_name }}:latest
@@ -11,11 +15,15 @@ services:
       DATABASE_URL: "${DATABASE_URL:?DATABASE_URL is required (corpus phdb)}"
       MNEMOSYNE_SCHEMA_DIR: "/app/schema"
       MNEMOSYNE_DB_ROLE: "{{ package_name }}"
+    ports:
+      - "{{ port }}:{{ port }}"
     networks:
+      - default
       - mnemosyne-net
     restart: unless-stopped
 
 networks:
+  default:
   mnemosyne-net:
     external: true
 {%- else %}

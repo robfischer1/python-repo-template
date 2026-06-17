@@ -1,10 +1,10 @@
 {%- if core_backed %}
 # Multi-stage Dockerfile for {{ service_name }} — constellation star.
-# Builds FROM the mnemosyne-core-base image (core + schema pre-baked).
-# No private-repo auth needed in this build.
+# Core comes from the public git pin (uv.lock); the PRIVATE mnemosyne-schema is
+# delivered by the mnemosyne-core-base image. No private-repo auth in this build.
 
-# -- Pull base ----------------------------------------------------------------
-FROM ghcr.io/robfischer1/mnemosyne-core-base:{{ core_base_tag }} AS core
+# -- Schema carrier (the private spec, baked) ---------------------------------
+FROM forgejo.notusmi.com/rob/mnemosyne-core-base:{{ core_base_tag }} AS schema
 
 # -- Stage 1: builder ---------------------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
@@ -14,19 +14,21 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never
 
-WORKDIR /app
+# git: uv fetches the mnemosyne-core git pin.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=core /app/src/mnemosyne_core/ /mnemosyne_core/src/mnemosyne_core/
-COPY --from=core /app/pyproject.toml /mnemosyne_core/pyproject.toml
+WORKDIR /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-dev --no-editable
+    uv sync --locked --no-install-project --no-dev
 
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable
+    uv sync --locked --no-dev
 
 # -- Stage 2: runtime ---------------------------------------------------------
 FROM python:3.12-slim-bookworm
@@ -35,7 +37,7 @@ RUN groupadd --system app \
     && useradd --system --gid app --create-home --home-dir /app app
 
 COPY --from=builder --chown=app:app /app /app
-COPY --from=core --chown=app:app /app/schema /app/schema
+COPY --from=schema --chown=app:app /app/schema /app/schema
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

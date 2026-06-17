@@ -32,8 +32,14 @@ core_backed:
 
 core_base_tag:
   type: str
-  help: "mnemosyne-core-base image tag (e.g. v0.1.0)"
+  help: "mnemosyne-core-base IMAGE tag (the baked private schema, e.g. v0.1.0)"
   default: v0.1.0
+  when: "{{ core_backed }}"
+
+core_version:
+  type: str
+  help: "mnemosyne-core git tag for the uv pin (the core package, e.g. v0.2.0)"
+  default: v0.2.0
   when: "{{ core_backed }}"
 
 port:

@@ -1,0 +1,53 @@
+# Forgejo Actions: build + deploy on push to main (constellation core_backed star).
+# Runs on the nas01 self-hosted runner (label `nas01`) with the host docker
+# socket mounted, so `docker compose up -d --build` targets nas01's own daemon.
+#
+# Builds FROM mnemosyne-core-base (the private schema is baked in; mnemosyne-core
+# comes from the public git pin in uv.lock) -- no sibling clones, no private-repo
+# auth in this deploy.
+#
+# REQUIRED Forgejo Actions secret (repo -> Settings -> Actions -> Secrets):
+#   DATABASE_URL  the corpus connection string the live container uses.
+#
+# Prereqs: Forgejo Actions enabled on the repo + a runner with the `nas01` label
+# (host-networked, /var/run/docker.sock allowed).
+
+name: deploy
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+
+jobs:
+  build-and-deploy:
+    runs-on: nas01
+    container:
+      image: catthehacker/ubuntu:act-22.04   # glibc + docker CLI + compose v2
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    steps:
+      - uses: https://github.com/actions/checkout@v4
+
+      # Install uv via its official script rather than astral-sh/setup-uv:
+      # that action resolves releases through GITHUB_API_URL, which on Forgejo
+      # points at this instance (no `astral-sh` user) and 403/404s.
+      - name: Install uv
+        env:
+          UV_INSTALL_DIR: /usr/local/bin
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Gate — lint / type / test (deploy only on green)
+        run: |
+          uv sync --all-extras
+          uv run ruff check .
+          uv run mypy src tests
+          uv run pyright
+          uv run pytest -q
+
+      - name: Build + deploy on nas01
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: docker compose up -d --build
