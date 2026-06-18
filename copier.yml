@@ -1,5 +1,8 @@
-# Service-repo copier template — stamps a standard, container-ready Forge MCP
-# service (the formalized vault-mcp shape). Realizes the service-repo standard:
+# Python-repo copier template — stamps a standard Forge Python project.
+# `mcp = true`  -> a container-ready FastMCP service (the formalized vault-mcp
+#                 shape: server.py, mcp[cli], Dockerfile/compose, deploy gate).
+# `mcp = false` -> a plain Python library / CLI: the same QA/CI/lint spine,
+#                 no service machinery. Realizes the service-repo standard:
 # furnace/docs/service-repo-standard.md. Pure code — the AI/governance layer is
 # poured separately by furnace (decoupled by design).
 
@@ -17,35 +20,42 @@ package_name:
 
 service_name:
   type: str
-  help: Console-script / distribution name (kebab-case)
+  help: Distribution / repo / image name (kebab-case); also the console-script when mcp
   default: "{{ project_name | lower | replace(' ', '-') | replace('_', '-') }}"
 
 description:
   type: str
-  help: One-line service description
-  default: A standard Forge MCP service.
+  help: One-line project description
+  default: A standard Forge Python project.
+
+mcp:
+  type: bool
+  help: "FastMCP service shape (server.py, mcp[cli], container, deploy). Off = plain library/CLI."
+  default: true
 
 core_backed:
   type: bool
   help: "Builds FROM mnemosyne-core-base (baked core + schema). For constellation stars."
   default: false
+  when: "{{ mcp }}"
 
 core_base_tag:
   type: str
   help: "mnemosyne-core-base IMAGE tag (the baked private schema, e.g. v0.1.0)"
   default: v0.1.0
-  when: "{{ core_backed }}"
+  when: "{{ mcp and core_backed }}"
 
 core_version:
   type: str
   help: "mnemosyne-core git tag for the uv pin (the core package, e.g. v0.2.0)"
   default: v0.2.0
-  when: "{{ core_backed }}"
+  when: "{{ mcp and core_backed }}"
 
 port:
   type: int
   help: Default streamable-HTTP listen port
   default: 8000
+  when: "{{ mcp }}"
 
 author_name:
   type: str

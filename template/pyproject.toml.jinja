@@ -11,7 +11,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+{%- if mcp %}
     "mcp[cli]>=1.0",
+{%- endif %}
 {%- if core_backed %}
     "mnemosyne-core>=0.2.0",
 {%- endif %}
@@ -19,14 +21,16 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/robfischer1/{{ service_name }}"
+{%- if mcp %}
 
 [project.scripts]
 {{ service_name }} = "{{ package_name }}.server:main"
+{%- endif %}
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
-    "ruff>=0.4",
+    "ruff==0.15.16",
     "mypy>=1.10",
     "pyright==1.1.410",
     "pre-commit>=3.5",
