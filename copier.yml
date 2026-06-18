@@ -3,8 +3,9 @@
 #                 shape: server.py, mcp[cli], Dockerfile/compose, deploy gate).
 # `mcp = false` -> a plain Python library / CLI: the same QA/CI/lint spine,
 #                 no service machinery. Realizes the service-repo standard:
-# furnace/docs/service-repo-standard.md. Pure code — the AI/governance layer is
-# poured separately by furnace (decoupled by design).
+# furnace/docs/service-repo-standard.md. copier lays the pure-code body; the
+# final `_task` runs `furnace ignite` to pour the governance kit (the `code-repo`
+# furnace kit) — copier owns repo creation, furnace owns the `.claude/` layer.
 
 _subdirectory: template
 _min_copier_version: "9.0.0"
@@ -85,4 +86,9 @@ _tasks:
   - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
+    when: "{{ _copier_operation == 'copy' }}"
+  # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
+  # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
+  # whole stamp (copier task semantics) — intentional: no half-governed repo.
+  - command: furnace ignite . --kit code-repo
     when: "{{ _copier_operation == 'copy' }}"
