@@ -1,11 +1,14 @@
 """Smoke tests for {{ service_name }}."""
 
 from {{ package_name }} import __version__
+{%- if mcp %}
 from {{ package_name }}.server import mcp, ping
+{%- endif %}
 
 
 def test_version() -> None:
     assert __version__ == "0.1.0"
+{%- if mcp %}
 
 
 def test_ping_tool() -> None:
@@ -14,3 +17,4 @@ def test_ping_tool() -> None:
 
 def test_server_name() -> None:
     assert mcp.name == "{{ service_name }}"
+{%- endif %}
