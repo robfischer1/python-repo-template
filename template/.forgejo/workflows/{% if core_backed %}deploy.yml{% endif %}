@@ -41,7 +41,7 @@ jobs:
 
       - name: Gate — lint / type / test (deploy only on green)
         run: |
-          uv sync --all-extras
+          uv sync --all-extras --locked
           uv run pre-commit run --all-files --show-diff-on-failure
           uv run mypy src tests
           uv run pyright
@@ -56,7 +56,7 @@ jobs:
 
       - name: SAST (opengrep, scoped taint rules)
         run: |
-          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/v1.23.0/install.sh | bash
           export PATH="$HOME/.opengrep/cli/latest:$PATH"
           export LANG=C.UTF-8 LC_ALL=C.UTF-8
           opengrep scan --config rules/sast --error .

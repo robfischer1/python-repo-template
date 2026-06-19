@@ -6,12 +6,17 @@ from {{ package_name }} import __version__
 {%- if mcp %}
 from {{ package_name }}.server import mcp, ping
 {%- endif %}
+from {{ package_name }}.settings import get_settings
 
 
 def test_version() -> None:
     # Assert a valid X.Y.Z version rather than a frozen literal, so the test
     # survives version bumps instead of rotting into a CI break.
     assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
+
+
+def test_settings_load() -> None:
+    assert get_settings().log_level == "INFO"
 {%- if mcp %}
 
 
