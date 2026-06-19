@@ -47,7 +47,45 @@ jobs:
           uv run pyright
           uv run pytest -q
 
-      - name: Build + deploy on nas01
+      # Security scanners (template v0.3.0). pip-audit BLOCKS on a dependency CVE.
+      # opengrep runs the vendored taint ruleset (rules/sast), INFORMATIONAL while
+      # tuned. LANG forces UTF-8 — opengrep reads files under the runner's C locale
+      # otherwise and dies on any non-ASCII byte.
+      - name: Dependency vuln scan (pip-audit)
+        run: uv run --with pip-audit pip-audit
+
+      - name: SAST (opengrep, scoped taint rules) [informational]
+        continue-on-error: true
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          export PATH="$HOME/.opengrep/cli/latest:$PATH"
+          export LANG=C.UTF-8 LC_ALL=C.UTF-8
+          opengrep scan --config rules/sast --error .
+
+      # Build the image, scan it, then deploy. Trivy BLOCKS the deploy on a
+      # FIXABLE HIGH/CRITICAL image CVE; --ignore-unfixed drops base-image CVEs
+      # with no released fix (not actionable here — slim the base image for those).
+      # The image name is read from the compose file, so this stays generic across
+      # stamped repos. compose needs DATABASE_URL set (the `${DATABASE_URL:?}`
+      # guard is evaluated at config-parse time, even for build/config).
+      - name: Build image
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: docker compose up -d --build
+        run: docker compose build
+
+      - name: Image CVE scan (Trivy)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          IMG=$(docker compose config --images | head -1)
+          echo "scanning image: $IMG"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress \
+            "$IMG"
+
+      - name: Deploy on nas01
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: docker compose up -d

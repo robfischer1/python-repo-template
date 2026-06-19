@@ -1,0 +1,123 @@
+# Curated SAST ruleset for the Forge star fleet (#1471) - opengrep / semgrep.
+#
+# TAINT mode only, by design. Deliberately scoped to data-FLOW issues that ruff's
+# `S` (flake8-bandit) ruleset cannot express: ruff S flags the *presence* of a
+# dangerous sink (e.g. subprocess shell=True, S310 urllib); these rules fire only
+# when an untrusted SOURCE actually *reaches* that sink. Non-overlapping with
+# ruff S by construction - this is the semantic layer, ruff S is the AST layer.
+#
+# Sources are external/untrusted inputs (HTTP request data, argv, stdin), NOT
+# os.environ / config values, to avoid config-flow false positives. Vendored +
+# pinned (no registry / `auto`); that local, offline posture is why we run
+# opengrep. ASCII-only on purpose: opengrep reads rule files under the runner's
+# C locale, which chokes on non-ASCII punctuation.
+#
+# SEED set: the SCOPING (local, curated, taint-mode, non-overlap) is settled;
+# the rule *content* grows as real flows surface across the fleet. Runs
+# INFORMATIONAL in CI until tuned, then the workflow drops `continue-on-error`.
+rules:
+  - id: forge-taint-ssrf
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >
+      Untrusted input flows into an outbound HTTP/URL call (SSRF). An attacker
+      could coerce the request toward internal services or file:// targets.
+      Validate against an allowlist before the call.
+    metadata:
+      category: security
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.query_params
+          - pattern: request.path_params
+          - pattern: request.headers
+          - pattern: (await request.json())
+          - pattern: sys.argv
+          - pattern: input(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: urllib.request.urlopen(...)
+              - pattern: urllib.request.Request(...)
+              - pattern: requests.$M(...)
+              - pattern: httpx.$M(...)
+              - pattern: $CLIENT.get(...)
+              - pattern: $CLIENT.post(...)
+
+  - id: forge-taint-sql-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >
+      Untrusted input flows into a SQL execution sink. Use bound parameters
+      (SQLAlchemy text() with :params, or the driver paramstyle); never string
+      interpolation or concatenation into SQL.
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.query_params
+          - pattern: request.path_params
+          - pattern: (await request.json())
+          - pattern: sys.argv
+          - pattern: input(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: sqlalchemy.text(...)
+              - pattern: $X.execute(...)
+              - pattern: $CONN.exec_driver_sql(...)
+
+  - id: forge-taint-command-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >
+      Untrusted input flows into an OS command sink. Avoid shell=True; pass an
+      argv list and validate inputs against an allowlist.
+    metadata:
+      category: security
+      cwe: "CWE-78: OS Command Injection"
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.query_params
+          - pattern: request.path_params
+          - pattern: (await request.json())
+          - pattern: sys.argv
+          - pattern: input(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: os.system(...)
+              - pattern: os.popen(...)
+              - pattern: subprocess.run(...)
+              - pattern: subprocess.call(...)
+              - pattern: subprocess.Popen(...)
+
+  - id: forge-taint-path-traversal
+    mode: taint
+    languages: [python]
+    severity: WARNING
+    message: >
+      Untrusted input flows into a filesystem path. An attacker could traverse
+      with '../' to read or write arbitrary files. Resolve the path and confine
+      it to an intended base directory.
+    metadata:
+      category: security
+      cwe: "CWE-22: Path Traversal"
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.query_params
+          - pattern: request.path_params
+          - pattern: (await request.json())
+          - pattern: sys.argv
+          - pattern: input(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: open(...)
+              - pattern: pathlib.Path(...)
+              - pattern: os.open(...)
+              - pattern: os.remove(...)
