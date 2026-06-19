@@ -26,3 +26,6 @@ build/
 
 # furnace deploy manifest — local deploy state, regenerated on each deploy
 .furnace/deployed.json
+
+# Agent worktrees — ephemeral isolation scratch from Agent(isolation: worktree)
+.claude/worktrees/
