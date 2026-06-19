@@ -48,14 +48,13 @@ jobs:
           uv run pytest -q
 
       # Security scanners (template v0.3.0). pip-audit BLOCKS on a dependency CVE.
-      # opengrep runs the vendored taint ruleset (rules/sast), INFORMATIONAL while
+      # opengrep runs the vendored taint ruleset (rules/sast), a BLOCKING gate while
       # tuned. LANG forces UTF-8 — opengrep reads files under the runner's C locale
       # otherwise and dies on any non-ASCII byte.
       - name: Dependency vuln scan (pip-audit)
         run: uv run --with pip-audit pip-audit
 
-      - name: SAST (opengrep, scoped taint rules) [informational]
-        continue-on-error: true
+      - name: SAST (opengrep, scoped taint rules)
         run: |
           curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
           export PATH="$HOME/.opengrep/cli/latest:$PATH"
