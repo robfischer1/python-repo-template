@@ -42,8 +42,6 @@ rules:
               - pattern: urllib.request.Request(...)
               - pattern: requests.$M(...)
               - pattern: httpx.$M(...)
-              - pattern: $CLIENT.get(...)
-              - pattern: $CLIENT.post(...)
 
   - id: forge-taint-sql-injection
     mode: taint
