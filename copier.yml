@@ -87,8 +87,26 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
     when: "{{ _copier_operation == 'copy' }}"
+  # Spec-Driven Development scaffold. spec-kit init lays .specify/ (ps scripts +
+  # core templates) and the claude speckit-* skills. NOTE: spec-kit no longer
+  # git-inits (git is opt-in since 0.10.0) — the `git init -q` above is load-bearing.
+  # `specify` must be on PATH. Runs BEFORE furnace ignite so the surface's
+  # speckit-plan override skill (poured next) wins as last writer.
+  - command: specify init --here --force --integration claude --script ps --ignore-agent-tools
+    when: "{{ _copier_operation == 'copy' }}"
+  # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
+  # fights furnace's CLAUDE.md @AGENTS.md shim, which furnace repours every ignite.
+  # The extension is deprecated (removed in spec-kit 0.12.0) — disable it now.
+  - command: specify extension disable agent-context
+    when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
+  # code-repo-sdd = code-repo + the speckit surface (.specify/ overrides + the
+  # speckit-plan command override + the forge-feature workflow). Must run AFTER
+  # `specify init` so the override skill overwrites spec-kit's core one.
   # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
   # whole stamp (copier task semantics) — intentional: no half-governed repo.
-  - command: furnace ignite . --kit code-repo
+  - command: furnace ignite . --kit code-repo-sdd
+    when: "{{ _copier_operation == 'copy' }}"
+  # Verify the plan-command override resolves as the project-tier winner.
+  - command: specify preset resolve speckit.plan
     when: "{{ _copier_operation == 'copy' }}"
