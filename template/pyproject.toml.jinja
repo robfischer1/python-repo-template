@@ -118,7 +118,7 @@ branch = true
 # Born-with sources. constellation is the governance library (op-contract,
 # manifest model, CI gate). Pinned to the forgejo-primary repo; Renovate bumps it.
 [tool.uv.sources]
-constellation = { git = "https://github.com/robfischer1/constellation.git" }
+constellation = { git = "https://forgejo.notusmi.com/rob/constellation.git" }
 {%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
