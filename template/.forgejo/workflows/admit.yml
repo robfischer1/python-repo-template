@@ -1,0 +1,168 @@
+# admit.yml — Forgejo Actions: fail-closed admission gate for constellation stars.
+#
+# Baked born-with by copier (from the constellation SG5 canonical gate). A star
+# cannot merge (and therefore cannot deploy) without passing every check here.
+#
+# Gate sequence (each step fails the job on non-zero exit — fail-closed):
+#
+#   1. checkout         — get the star repo at the PR ref.
+#   2. install tools    — uv, conftest, cosign, syft, oras (pinned versions).
+#   3. pull+verify      — read [governance] from star.toml; cosign verify the
+#                         pinned bundle; oras pull the bundle layers to policy/.
+#                         FAILS if the signature is invalid or the pin is absent.
+#   4. supply-chain     — cosign verify the star's image (IMAGE_SIGNED);
+#                         syft generates an SBOM (SBOM_PRESENT).
+#   5. build input      — python -m constellation.gate builds admission-input.json
+#                         from star.toml + supply-chain flags. Also enforces the
+#                         fail-closed interstellar-registry gate (F8 deferred).
+#   6. conftest         — conftest test admission-input.json -p policy.
+#                         Any denial fails the job.
+#
+# Tool versions (pinned): cosign v2.2.4, oras 1.2.0, conftest 0.56.0, syft 0.117.0.
+
+name: admit
+
+on:
+  pull_request:
+
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'forgejo.notusmi.com' }}
+
+jobs:
+  gate:
+    name: Admission gate
+    runs-on: nas01
+    container:
+      image: catthehacker/ubuntu:act-22.04
+    steps:
+      - uses: https://github.com/actions/checkout@v4
+
+      - name: Install uv
+        env:
+          UV_INSTALL_DIR: /usr/local/bin
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install conftest
+        run: |
+          set -euo pipefail
+          VERSION="0.56.0"
+          curl -LO "https://github.com/open-policy-agent/conftest/releases/download/v${VERSION}/conftest_${VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf "conftest_${VERSION}_Linux_x86_64.tar.gz" conftest
+          install -m 0755 conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Install cosign
+        run: |
+          set -euo pipefail
+          VERSION="v2.2.4"
+          curl -LO "https://github.com/sigstore/cosign/releases/download/${VERSION}/cosign-linux-amd64"
+          install -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
+          cosign version
+
+      - name: Install syft
+        run: |
+          set -euo pipefail
+          VERSION="0.117.0"
+          curl -LO "https://github.com/anchore/syft/releases/download/v${VERSION}/syft_${VERSION}_linux_amd64.tar.gz"
+          tar -xzf "syft_${VERSION}_linux_amd64.tar.gz" syft
+          install -m 0755 syft /usr/local/bin/syft
+          syft version
+
+      - name: Install oras
+        run: |
+          set -euo pipefail
+          VERSION="1.2.0"
+          curl -LO "https://github.com/oras-project/oras/releases/download/v${VERSION}/oras_${VERSION}_linux_amd64.tar.gz"
+          tar -xzf "oras_${VERSION}_linux_amd64.tar.gz" -C /usr/local/bin oras
+          oras version
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras --locked
+
+      - name: Pull and verify policy bundle
+        run: |
+          set -euo pipefail
+          BUNDLE=$(uv run python -c "
+          import tomllib, sys
+          data = tomllib.loads(open('star.toml').read())
+          g = data.get('governance')
+          if not g:
+              print('ERROR: star.toml has no [governance] block — bundle pin required', file=sys.stderr)
+              sys.exit(1)
+          print(g['bundle'].removeprefix('oci://'))
+          ")
+          TAG=$(uv run python -c "
+          import tomllib
+          data = tomllib.loads(open('star.toml').read())
+          print(data['governance']['tag'])
+          ")
+          DIGEST=$(uv run python -c "
+          import tomllib, sys
+          data = tomllib.loads(open('star.toml').read())
+          d = data['governance'].get('digest', '')
+          if not d:
+              print('ERROR: star.toml [governance].digest is required for verification', file=sys.stderr)
+              sys.exit(1)
+          print(d)
+          ")
+          FULL_REF="${BUNDLE}:${TAG}@${DIGEST}"
+          echo "Verifying bundle: ${FULL_REF}"
+          cosign verify \
+            --certificate-identity-regexp ".*" \
+            --certificate-oidc-issuer-regexp ".*" \
+            "${FULL_REF}"
+          echo "Pulling bundle to policy/"
+          oras pull "${FULL_REF}" --output policy/
+          echo "Bundle pull complete."
+
+      - name: Supply-chain attestation
+        id: supply_chain
+        run: |
+          set -euo pipefail
+          IMAGE_SIGNED="false"
+          SBOM_PRESENT="false"
+          IMAGE_REF=$(uv run python -c "
+          import tomllib
+          data = tomllib.loads(open('star.toml').read())
+          print(data.get('image', {}).get('ref', ''))
+          " 2>/dev/null || true)
+          if [ -n "${IMAGE_REF}" ]; then
+            echo "Checking supply-chain for image: ${IMAGE_REF}"
+            if cosign verify \
+                --certificate-identity-regexp ".*" \
+                --certificate-oidc-issuer-regexp ".*" \
+                "${IMAGE_REF}" 2>/dev/null; then
+              IMAGE_SIGNED="true"
+            fi
+            if syft "${IMAGE_REF}" -o spdx-json --file sbom.spdx.json 2>/dev/null; then
+              SBOM_PRESENT="true"
+            fi
+          else
+            echo "No image ref in star.toml — supply-chain not attested (IMAGE_SIGNED=false)"
+          fi
+          echo "IMAGE_SIGNED=${IMAGE_SIGNED}" >> "${GITHUB_ENV}"
+          echo "SBOM_PRESENT=${SBOM_PRESENT}" >> "${GITHUB_ENV}"
+
+      - name: Build admission input
+        run: |
+          set -euo pipefail
+          MIGRATIONS_FLAG=""
+          if [ -d migrations ]; then
+            uv run python -c "
+          import json, pathlib
+          migs = [{'file': f.name, 'namespace': ''} for f in sorted(pathlib.Path('migrations').iterdir()) if f.is_file()]
+          print(json.dumps(migs))
+          " > migrations-list.json
+            MIGRATIONS_FLAG="--migrations migrations-list.json"
+          fi
+          uv run python -m constellation.gate \
+            --star-toml star.toml \
+            ${MIGRATIONS_FLAG} \
+            --image-signed "${IMAGE_SIGNED}" \
+            --sbom-present "${SBOM_PRESENT}" \
+            --out admission-input.json
+
+      - name: Conftest policy evaluation
+        run: |
+          set -euo pipefail
+          conftest test admission-input.json -p policy

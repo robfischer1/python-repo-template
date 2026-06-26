@@ -68,6 +68,36 @@ year:
   help: Copyright year
   default: 2026
 
+# --- Star manifest (constellation) ------------------------------------------
+# These answers generate a born-conformant `star.toml` (the constellation
+# StarManifest keystone). Every stamped repo is a candidate star; the admission
+# gate (.forgejo/workflows/admit.yml) reads star.toml at PR time.
+
+charter:
+  type: str
+  help: "The star's single-responsibility charter (<= 100 chars) — the SRP gate"
+  default: "{{ description }}"
+
+cluster:
+  type: str
+  help: Constellation cluster this star belongs to
+  default: pantheon
+
+star_namespace:
+  type: str
+  help: "Sovereign namespace this star owns (no shared tables across stars)"
+  default: "{{ package_name }}"
+
+substrate_kind:
+  type: str
+  help: "Deployment substrate kind (container | pod | ...) — the Candidacy litmus"
+  default: container
+
+interstellar:
+  type: bool
+  help: "Produces/consumes Kafka events? Adds async = [\"kafka\"] to the manifest."
+  default: false
+
 # Init-only setup, run by `copier copy --trust` (gated to copy, skipped on
 # `copier update`). Leaves a ready git repo with a synced env + installed hooks.
 _tasks:

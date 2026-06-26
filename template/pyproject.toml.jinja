@@ -12,6 +12,10 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-settings>=2.0",
+    # Born-with constellation library: the op-contract (constellation.ops, used
+    # by health.py), the manifest model, and the CI gate (constellation.gate,
+    # invoked by .forgejo/workflows/admit.yml).
+    "constellation",
 {%- if mcp %}
     "mcp[cli]>=1.0",
 {%- endif %}
@@ -110,11 +114,14 @@ addopts = "--cov={{ package_name }} --cov-report=term-missing"
 [tool.coverage.run]
 source = ["src"]
 branch = true
-{%- if core_backed %}
 
+# Born-with sources. constellation is the governance library (op-contract,
+# manifest model, CI gate). Pinned to the forgejo-primary repo; Renovate bumps it.
+[tool.uv.sources]
+constellation = { git = "https://github.com/robfischer1/constellation.git" }
+{%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
 # `uv pip install -e ../mnemosyne_core` after `uv sync`.
-[tool.uv.sources]
 mnemosyne-core = { git = "https://github.com/robfischer1/mnemosyne_core.git", tag = "{{ core_version }}" }
 {%- endif %}
