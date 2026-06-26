@@ -52,6 +52,26 @@ core_version:
   default: v0.2.0
   when: "{{ mcp and core_backed }}"
 
+# --- Sovereign store (chaos pattern) ----------------------------------------
+# A sovereign star OWNS its database (no shared tables across stars): an own-DB
+# service on a private network, the app internal-only (no host port), the DB
+# password fail-closed from an env secret. Off = the interim shared-corpus shape
+# (host port published, external DATABASE_URL).
+sovereign_database:
+  type: bool
+  help: "Constellation star owns its own sovereign database (chaos pattern)?"
+  default: false
+  when: "{{ mcp and core_backed }}"
+
+db_kind:
+  type: str
+  help: "DB image kind; pgvector for similarity search"
+  default: postgres
+  choices:
+    - postgres
+    - pgvector
+  when: "{{ mcp and core_backed and sovereign_database }}"
+
 port:
   type: int
   help: Default streamable-HTTP listen port
