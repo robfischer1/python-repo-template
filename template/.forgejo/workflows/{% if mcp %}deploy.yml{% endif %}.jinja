@@ -58,6 +58,12 @@ jobs:
     steps:
       - uses: https://github.com/actions/checkout@v4
 
+      # Single source of truth for tool versions, shared with admit.yml — the
+      # cosign that SIGNS here must match the cosign that VERIFIES in the gate.
+      - name: Load tool versions
+        shell: bash
+        run: grep -E '^[A-Z_]+=' .forgejo/versions.env >> "$GITHUB_ENV"
+
       # Install uv via its official script rather than astral-sh/setup-uv:
       # that action resolves releases through GITHUB_API_URL, which on Forgejo
       # points at this instance (no `astral-sh` user) and 403/404s.
@@ -165,7 +171,7 @@ jobs:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
         run: |
           set -euo pipefail
-          curl -sSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          curl -sSL -o /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
           chmod +x /usr/local/bin/cosign
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin >/dev/null
           IMG=$(cat /tmp/built-image)
