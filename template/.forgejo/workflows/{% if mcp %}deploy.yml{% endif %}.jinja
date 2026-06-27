@@ -116,7 +116,7 @@ jobs:
 {%- if sovereign_database %}
           # config --images lists {{ service_name }}-db's image too (depends_on);
           # isolate the app image by its registry, not head -1.
-          IMG=$(docker compose config --images | grep '^ghcr.io/robfischer1/' | head -1)
+          IMG=$(docker compose config --images | grep '^forgejo.notusmi.com/' | head -1)
 {%- else %}
           IMG=$(docker compose config --images | head -1)
 {%- endif %}
@@ -127,10 +127,12 @@ jobs:
             --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress \
             "$IMG"
 
-      # Publish the built image to the Forgejo container registry, then deploy.
-      # `docker compose push` publishes the image named in compose.yaml; the
-      # docker login persists into the sign step (same job container).
-      - name: Publish to Forgejo registry + deploy on nas01
+      # Publish the built image to the Forgejo container registry. The container
+      # LIFECYCLE is Tofu-managed (Nereus reads compose.yaml + applies) — CI only
+      # builds + publishes + signs the image. There is NO `docker compose up` here:
+      # it would fight Tofu for the container (per Constellation Deployment —
+      # Canonical). The docker login persists into the sign step (same job container).
+      - name: Publish to Forgejo registry
         shell: bash   # the act runner defaults to dash (no pipefail)
         env:
           REGISTRY_TOKEN: {% raw %}${{ secrets.REGISTRY_TOKEN }}{% endraw %}
@@ -142,12 +144,11 @@ jobs:
           echo "${REGISTRY_TOKEN}" | docker login forgejo.notusmi.com -u rob --password-stdin
 {%- if sovereign_database %}
           docker compose push {{ service_name }}
-          docker compose config --images | grep '^ghcr.io/robfischer1/' | head -1 > /tmp/built-image
+          docker compose config --images | grep '^forgejo.notusmi.com/' | head -1 > /tmp/built-image
 {%- else %}
           docker compose push
           docker compose config --images | head -1 > /tmp/built-image
 {%- endif %}
-          docker compose up -d
 
       # Supply-chain: sign the published image with the constellation cosign key +
       # attach a CycloneDX SBOM attestation, then verify with the committed public
