@@ -120,8 +120,9 @@ interstellar:
   help: "Produces/consumes Kafka events? Adds async = [\"kafka\"] to the manifest."
   default: false
 
-# Init-only setup, run by `copier copy --trust` (gated to copy, skipped on
-# `copier update`). Leaves a ready git repo with a synced env + installed hooks.
+# Setup tasks. Most are init-only (gated to copy), EXCEPT `uv lock`, which also
+# runs on `copier update` so a template pyproject change never leaves a stale
+# lock. copy leaves a ready git repo with a synced env + installed hooks.
 _tasks:
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
@@ -135,6 +136,11 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv sync --extra dev
     when: "{{ _copier_operation == 'copy' }}"
+  # Re-lock on EVERY operation, including `update`: a template bump that touches
+  # pyproject (e.g. a new optional-dependency) otherwise leaves a star with a
+  # stale uv.lock that the admission gate's `uv sync --locked` rejects. No `when:`
+  # -> runs on update too; `uv lock` is idempotent (no-op when already current).
+  - command: uv lock
   - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
