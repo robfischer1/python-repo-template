@@ -124,6 +124,11 @@ interstellar:
 # runs on `copier update` so a template pyproject change never leaves a stale
 # lock. copy leaves a ready git repo with a synced env + installed hooks.
 _tasks:
+  # Normalize the copier-generated answers file to end with exactly one newline.
+  # copier emits `.copier-answers.yml` without a trailing newline, which fails the
+  # end-of-file-fixer pre-commit hook -> a red CI gate on the first PR of every
+  # stamped/updated repo. Ungated: runs on BOTH copy and update.
+  - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
   # Forgejo is git-primary (origin); GitHub is the push-mirror target — the

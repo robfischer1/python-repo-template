@@ -17,7 +17,10 @@ dependencies = [
     # invoked by .forgejo/workflows/admit.yml).
     "constellation",
 {%- if mcp %}
-    "mcp[cli]>=1.0",
+    # Pinned to a minor: mcp's transport-security defaults (DNS-rebinding) shift
+    # across minors, and an unpinned floor let stars stamped days apart resolve
+    # different versions. Renovate bumps this; server.py configures allowed_hosts.
+    "mcp[cli]~=1.28.1",
 {%- endif %}
 {%- if core_backed %}
     "mnemosyne-core>=0.2.0",
