@@ -1,4 +1,66 @@
-{%- if core_backed %}
+{%- if core_backed and sovereign_database %}
+{%- set db_pw_var = service_name | upper | replace('-', '_') ~ '_DB_PASSWORD' %}
+# Per-service Docker Compose stack for {{ service_name }} (nas01, sovereign star).
+#
+# SOVEREIGN: {{ service_name }} OWNS its store ({{ service_name }}-db) — the
+# Sovereignty invariant (no shared tables across stars). The app is internal-only
+# (no host port): reached east-west by the edge at
+# http://{{ service_name }}:{{ port }}/mcp on mnemosyne-net; {{ service_name }}-net
+# is the private link to its sovereign DB. The DB password resolves from
+# bws/pantheon at deploy ({{ db_pw_var }}, fail-closed).
+services:
+  {{ service_name }}:
+    image: ghcr.io/robfischer1/{{ service_name }}:latest
+    build: .
+    environment:
+      PORT: "{{ port }}"
+      HOST: "0.0.0.0"
+      DATABASE_URL: "postgresql://{{ package_name }}:{{ '${' }}{{ db_pw_var }}:?set {{ db_pw_var }}}@{{ service_name }}-db:5432/{{ package_name }}"
+      MNEMOSYNE_SCHEMA_DIR: "/app/schema"
+      MNEMOSYNE_DB_ROLE: "{{ package_name }}"
+    depends_on:
+      {{ service_name }}-db:
+        condition: service_healthy
+    # No host port — internal star, reached only east-west via the edge on
+    # mnemosyne-net; {{ service_name }}-net is the private link to its sovereign DB.
+    networks:
+      - mnemosyne-net
+      - {{ service_name }}-net
+    restart: unless-stopped
+
+  {{ service_name }}-db:
+    image: {% if db_kind == 'pgvector' %}pgvector/pgvector:pg18{% else %}postgres:16-bookworm{% endif %}
+    environment:
+      POSTGRES_DB: {{ package_name }}
+      POSTGRES_USER: {{ package_name }}
+      POSTGRES_PASSWORD: "{{ '${' }}{{ db_pw_var }}:?set {{ db_pw_var }}}"
+    volumes:
+      # pg18 (pgvector) stores data under /var/lib/postgresql; pre-18 postgres
+      # mounts at .../data — pg refuses to start against the wrong path.
+      - {{ service_name }}-db-data:{% if db_kind == 'pgvector' %}/var/lib/postgresql{% else %}/var/lib/postgresql/data{% endif %}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ package_name }} -d {{ package_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No published port — sovereignty: only {{ service_name }} reaches it, over
+    # the private {{ service_name }}-net.
+    networks:
+      - {{ service_name }}-net
+    restart: unless-stopped
+
+volumes:
+  {{ service_name }}-db-data:
+
+networks:
+  # Shared constellation east-west network — the edge dials {{ service_name }} here.
+  # External: created once by the edge stack, never by this stack.
+  mnemosyne-net:
+    external: true
+  # Private link between {{ service_name }} and its sovereign DB.
+  {{ service_name }}-net:
+    driver: bridge
+{%- elif core_backed %}
 # Per-service Docker Compose stack for {{ service_name }} (nas01, constellation star).
 #
 # INTERIM (until the Hades gateway / MP-B lands): joins mnemosyne-net AND stays

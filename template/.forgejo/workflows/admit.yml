@@ -6,19 +6,19 @@
 # Gate sequence (each step fails the job on non-zero exit — fail-closed):
 #
 #   1. checkout         — get the star repo at the PR ref.
-#   2. install tools    — uv, conftest, cosign, syft, oras (pinned versions).
-#   3. pull+verify      — read [governance] from star.toml; cosign verify the
-#                         pinned bundle; oras pull the bundle layers to policy/.
-#                         FAILS if the signature is invalid or the pin is absent.
-#   4. supply-chain     — cosign verify the star's image (IMAGE_SIGNED);
+#   2. load versions    — .forgejo/versions.env -> $GITHUB_ENV (shared with
+#                         deploy.yml's signer so cosign verify == cosign sign).
+#   3. install tools    — uv, conftest, cosign, syft, oras.
+#   4. pull+verify      — read [governance] from star.toml; cosign verify (keyed,
+#                         cosign.pub) the pinned bundle; oras pull to policy/.
+#   5. supply-chain     — cosign verify (keyed) the star's image (IMAGE_SIGNED);
 #                         syft generates an SBOM (SBOM_PRESENT).
-#   5. build input      — python -m constellation.gate builds admission-input.json
-#                         from star.toml + supply-chain flags. Also enforces the
-#                         fail-closed interstellar-registry gate (F8 deferred).
-#   6. conftest         — conftest test admission-input.json -p policy.
-#                         Any denial fails the job.
+#   6. build input      — python -m constellation.gate builds admission-input.json.
+#   7. conftest         — conftest test admission-input.json -p policy.
 #
-# Tool versions (pinned): cosign v2.2.4, oras 1.2.0, conftest 0.56.0, syft 0.117.0.
+# Tool versions: .forgejo/versions.env (single source of truth, shared with deploy).
+# Signature scheme: KEYED — verify against the committed shared key cosign.pub
+# (matches deploy.yml's `cosign sign --key`; keyless cannot verify a keyed image).
 
 name: admit
 
@@ -32,10 +32,21 @@ jobs:
   gate:
     name: Admission gate
     runs-on: nas01
+    # The act runner defaults to dash, which rejects `set -o pipefail`; every step
+    # below relies on it. Pin bash for all run steps (mirrors deploy.yml).
+    defaults:
+      run:
+        shell: bash
     container:
       image: catthehacker/ubuntu:act-22.04
     steps:
       - uses: https://github.com/actions/checkout@v4
+
+      # Single source of truth for tool versions (shared with deploy.yml's signer).
+      # Only KEY=VALUE lines are exported; comments/blanks are skipped so the
+      # $GITHUB_ENV parser never chokes.
+      - name: Load tool versions
+        run: grep -E '^[A-Z_]+=' .forgejo/versions.env >> "$GITHUB_ENV"
 
       - name: Install uv
         env:
@@ -45,35 +56,31 @@ jobs:
       - name: Install conftest
         run: |
           set -euo pipefail
-          VERSION="0.56.0"
-          curl -LO "https://github.com/open-policy-agent/conftest/releases/download/v${VERSION}/conftest_${VERSION}_Linux_x86_64.tar.gz"
-          tar -xzf "conftest_${VERSION}_Linux_x86_64.tar.gz" conftest
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar -xzf "conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" conftest
           install -m 0755 conftest /usr/local/bin/conftest
           conftest --version
 
       - name: Install cosign
         run: |
           set -euo pipefail
-          VERSION="v2.2.4"
-          curl -LO "https://github.com/sigstore/cosign/releases/download/${VERSION}/cosign-linux-amd64"
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
           install -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
           cosign version
 
       - name: Install syft
         run: |
           set -euo pipefail
-          VERSION="0.117.0"
-          curl -LO "https://github.com/anchore/syft/releases/download/v${VERSION}/syft_${VERSION}_linux_amd64.tar.gz"
-          tar -xzf "syft_${VERSION}_linux_amd64.tar.gz" syft
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf "syft_${SYFT_VERSION}_linux_amd64.tar.gz" syft
           install -m 0755 syft /usr/local/bin/syft
           syft version
 
       - name: Install oras
         run: |
           set -euo pipefail
-          VERSION="1.2.0"
-          curl -LO "https://github.com/oras-project/oras/releases/download/v${VERSION}/oras_${VERSION}_linux_amd64.tar.gz"
-          tar -xzf "oras_${VERSION}_linux_amd64.tar.gz" -C /usr/local/bin oras
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
+          tar -xzf "oras_${ORAS_VERSION}_linux_amd64.tar.gz" -C /usr/local/bin oras
           oras version
 
       - name: Install Python dependencies
@@ -107,10 +114,7 @@ jobs:
           ")
           FULL_REF="${BUNDLE}:${TAG}@${DIGEST}"
           echo "Verifying bundle: ${FULL_REF}"
-          cosign verify \
-            --certificate-identity-regexp ".*" \
-            --certificate-oidc-issuer-regexp ".*" \
-            "${FULL_REF}"
+          cosign verify --key cosign.pub "${FULL_REF}"
           echo "Pulling bundle to policy/"
           oras pull "${FULL_REF}" --output policy/
           echo "Bundle pull complete."
@@ -128,10 +132,7 @@ jobs:
           " 2>/dev/null || true)
           if [ -n "${IMAGE_REF}" ]; then
             echo "Checking supply-chain for image: ${IMAGE_REF}"
-            if cosign verify \
-                --certificate-identity-regexp ".*" \
-                --certificate-oidc-issuer-regexp ".*" \
-                "${IMAGE_REF}" 2>/dev/null; then
+            if cosign verify --key cosign.pub "${IMAGE_REF}" 2>/dev/null; then
               IMAGE_SIGNED="true"
             fi
             if syft "${IMAGE_REF}" -o spdx-json --file sbom.spdx.json 2>/dev/null; then

@@ -1,13 +1,28 @@
+{%- set db_pw_var = service_name | upper | replace('-', '_') ~ '_DB_PASSWORD' -%}
 # Forgejo Actions: build + deploy on push to main (constellation service star).
 # Runs on the nas01 self-hosted runner (label `nas01`) with the host docker
-# socket mounted, so `docker compose up -d --build` targets nas01's own daemon.
+# socket mounted, so `docker build`/`push` target nas01's own daemon + registry.
+# CI builds + scans + signs + publishes the image only; the container lifecycle
+# is Tofu-managed (Nereus) — there is no `docker compose up` here.
 #
 # Builds FROM mnemosyne-core-base (the private schema is baked in; mnemosyne-core
 # comes from the public git pin in uv.lock) -- no sibling clones, no private-repo
 # auth in this deploy.
+{%- if sovereign_database %}
+#
+# SOVEREIGN star: {{ service_name }} owns its store ({{ service_name }}-db) in the
+# same stack on a private network. Only the app image is built / scanned / pushed
+# / signed; the third-party DB image is pulled, never republished.
+{%- endif %}
 #
 # REQUIRED Forgejo Actions secrets (repo -> Settings -> Actions -> Secrets):
+{%- if sovereign_database %}
+#   {{ db_pw_var }}
+#                        {{ service_name }}-db password — compose interpolates it
+#                        (fail-closed) in BOTH the app + db service blocks.
+{%- else %}
 #   DATABASE_URL         the corpus connection string the live container uses.
+{%- endif %}
 #   REGISTRY_TOKEN       a Forgejo PAT (write:package) -- docker login + push the
 #                        built image to forgejo.notusmi.com/rob/<service>.
 #   COSIGN_PRIVATE_KEY   base64 of the constellation cosign private key (single line).
@@ -35,8 +50,21 @@ jobs:
       image: catthehacker/ubuntu:act-22.04   # glibc + docker CLI + compose v2
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
+{%- if sovereign_database %}
+    # {{ service_name }}'s compose interpolates the fail-closed {{ db_pw_var }} in
+    # BOTH service blocks, so every `docker compose` call below (build, config,
+    # push, up) needs it in the env — set it job-wide, not just per step.
+    env:
+      {{ db_pw_var }}: {% raw %}${{ secrets.{% endraw %}{{ db_pw_var }}{% raw %} }}{% endraw %}
+{%- endif %}
     steps:
       - uses: https://github.com/actions/checkout@v4
+
+      # Single source of truth for tool versions, shared with admit.yml — the
+      # cosign that SIGNS here must match the cosign that VERIFIES in the gate.
+      - name: Load tool versions
+        shell: bash
+        run: grep -E '^[A-Z_]+=' .forgejo/versions.env >> "$GITHUB_ENV"
 
       # Install uv via its official script rather than astral-sh/setup-uv:
       # that action resolves releases through GITHUB_API_URL, which on Forgejo
@@ -72,18 +100,34 @@ jobs:
       # FIXABLE HIGH/CRITICAL image CVE; --ignore-unfixed drops base-image CVEs
       # with no released fix (not actionable here — slim the base image for those).
       # The image name is read from the compose file, so this stays generic across
-      # stamped repos. compose needs DATABASE_URL set (the `${DATABASE_URL:?}`
-      # guard is evaluated at config-parse time, even for build/config).
+      # stamped repos.
+{%- if sovereign_database %}
+      # Build ONLY the {{ service_name }} app image ({{ service_name }}-db uses a
+      # pre-built DB image).
+      - name: Build image
+        run: docker compose build {{ service_name }}
+{%- else %}
+      # compose needs DATABASE_URL set (the `${DATABASE_URL:?}` guard is evaluated
+      # at config-parse time, even for build/config).
       - name: Build image
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: {% raw %}${{ secrets.DATABASE_URL }}{% endraw %}
         run: docker compose build
+{%- endif %}
 
       - name: Image CVE scan (Trivy)
+{%- if not sovereign_database %}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: {% raw %}${{ secrets.DATABASE_URL }}{% endraw %}
+{%- endif %}
         run: |
+{%- if sovereign_database %}
+          # config --images lists {{ service_name }}-db's image too (depends_on);
+          # isolate the app image by its registry, not head -1.
+          IMG=$(docker compose config --images | grep '^forgejo.notusmi.com/' | head -1)
+{%- else %}
           IMG=$(docker compose config --images | head -1)
+{%- endif %}
           echo "scanning image: $IMG"
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -91,20 +135,28 @@ jobs:
             --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress \
             "$IMG"
 
-      # Publish the built image to the Forgejo container registry, then deploy.
-      # `docker compose push` publishes the image named in compose.yaml; the
-      # docker login persists into the sign step (same job container).
-      - name: Publish to Forgejo registry + deploy on nas01
+      # Publish the built image to the Forgejo container registry. The container
+      # LIFECYCLE is Tofu-managed (Nereus reads compose.yaml + applies) — CI only
+      # builds + publishes + signs the image. There is NO `docker compose up` here:
+      # it would fight Tofu for the container (per Constellation Deployment —
+      # Canonical). The docker login persists into the sign step (same job container).
+      - name: Publish to Forgejo registry
         shell: bash   # the act runner defaults to dash (no pipefail)
         env:
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REGISTRY_TOKEN: {% raw %}${{ secrets.REGISTRY_TOKEN }}{% endraw %}
+{%- if not sovereign_database %}
+          DATABASE_URL: {% raw %}${{ secrets.DATABASE_URL }}{% endraw %}
+{%- endif %}
         run: |
           set -euo pipefail
           echo "${REGISTRY_TOKEN}" | docker login forgejo.notusmi.com -u rob --password-stdin
+{%- if sovereign_database %}
+          docker compose push {{ service_name }}
+          docker compose config --images | grep '^forgejo.notusmi.com/' | head -1 > /tmp/built-image
+{%- else %}
           docker compose push
           docker compose config --images | head -1 > /tmp/built-image
-          docker compose up -d
+{%- endif %}
 
       # Supply-chain: sign the published image with the constellation cosign key +
       # attach a CycloneDX SBOM attestation, then verify with the committed public
@@ -113,7 +165,7 @@ jobs:
       # runner image -> fetch them. COSIGN_PRIVATE_KEY (base64, single-line) +
       # COSIGN_PASSWORD are bws-sourced repo Actions secrets; the publish step's
       # docker login persists here (same job container).
-      - name: Sign image + attest SBOM (cosign)
+{% raw %}      - name: Sign image + attest SBOM (cosign)
         shell: bash
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
@@ -121,7 +173,7 @@ jobs:
           DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
         run: |
           set -euo pipefail
-          curl -sSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          curl -sSL -o /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
           chmod +x /usr/local/bin/cosign
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin >/dev/null
           IMG=$(cat /tmp/built-image)
@@ -144,4 +196,4 @@ jobs:
           printf '{"projectName":"%s","projectVersion":"latest","autoCreate":true,"bom":"%s"}' "$PROJ_NAME" "$(base64 -w0 /tmp/sbom.cdx.json)" > /tmp/dt-bom.json
           docker run --rm -i --network host curlimages/curl:latest -s -X PUT http://127.0.0.1:30181/api/v1/bom -H "Content-Type: application/json" -H "X-Api-Key: ${DTRACK_API_KEY}" --data-binary @- -o /dev/null -w 'DT upload HTTP %{http_code}\n' < /tmp/dt-bom.json || echo "DT upload failed (non-fatal)"
 
-          docker logout forgejo.notusmi.com
+          docker logout forgejo.notusmi.com{% endraw %}

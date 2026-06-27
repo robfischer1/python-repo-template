@@ -41,6 +41,16 @@ dev = [
     "pyright==1.1.410",
     "pre-commit>=3.5",
 ]
+{%- if sovereign_database %}
+# Sovereign Postgres driver, installed into the image via `uv sync --extra pg`
+# (see the Dockerfile). Kept an extra, not a base dep, so non-DB stars stay lean.
+pg = [
+    "psycopg[binary]>=3.1",
+{%- if db_kind == "pgvector" %}
+    "pgvector>=0.3",
+{%- endif %}
+]
+{%- endif %}
 
 [build-system]
 requires = ["hatchling"]
