@@ -1,7 +1,9 @@
 {%- set db_pw_var = service_name | upper | replace('-', '_') ~ '_DB_PASSWORD' -%}
 # Forgejo Actions: build + deploy on push to main (constellation service star).
 # Runs on the nas01 self-hosted runner (label `nas01`) with the host docker
-# socket mounted, so `docker compose up -d --build` targets nas01's own daemon.
+# socket mounted, so `docker build`/`push` target nas01's own daemon + registry.
+# CI builds + scans + signs + publishes the image only; the container lifecycle
+# is Tofu-managed (Nereus) — there is no `docker compose up` here.
 #
 # Builds FROM mnemosyne-core-base (the private schema is baked in; mnemosyne-core
 # comes from the public git pin in uv.lock) -- no sibling clones, no private-repo
