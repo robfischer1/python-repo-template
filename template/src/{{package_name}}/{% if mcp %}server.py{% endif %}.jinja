@@ -5,11 +5,33 @@ A standard Forge MCP service: streamable-HTTP, stateless, typed config.
 
 from __future__ import annotations
 
+import os
+
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from {{ package_name }}.settings import get_settings
 
-mcp = FastMCP("{{ service_name }}", stateless_http=True, json_response=True)
+# Transport security (DNS-rebinding protection). Stars sit on a private network
+# behind the Hades gateway — server-to-server, no browser — so mcp's default
+# (reject any Host header not in allowed_hosts, with a 421) blocks the gateway
+# dialing this star by its service name. Default to OFF + allow-all; set
+# `{{ package_name | upper }}_ALLOWED_HOSTS` (comma-separated) to re-pin hosts.
+_allowed_hosts = [
+    h for h in os.environ.get("{{ package_name | upper }}_ALLOWED_HOSTS", "").split(",") if h
+]
+_transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=bool(_allowed_hosts),
+    allowed_hosts=_allowed_hosts or ["*"],
+    allowed_origins=[f"http://{h}" for h in _allowed_hosts] or ["*"],
+)
+
+mcp = FastMCP(
+    "{{ service_name }}",
+    stateless_http=True,
+    json_response=True,
+    transport_security=_transport_security,
+)
 
 
 @mcp.tool()
