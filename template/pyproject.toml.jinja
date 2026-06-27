@@ -12,10 +12,10 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-settings>=2.0",
-    # Born-with constellation library: the op-contract (constellation.ops, used
-    # by health.py), the manifest model, and the CI gate (constellation.gate,
-    # invoked by .forgejo/workflows/admit.yml).
-    "constellation",
+    # The op-contract ({live, ready, metrics}) is vendored born-with as the local
+    # `.ops` module (baked by copier from constellation) — NO constellation runtime
+    # dep. The CI gate (constellation.gate / .manifest) is a CI-time tool pulled
+    # ephemerally by .forgejo/workflows/admit.yml, not a project dependency.
 {%- if mcp %}
     "mcp[cli]>=1.0",
 {%- endif %}
@@ -125,10 +125,10 @@ addopts = "--cov={{ package_name }} --cov-report=term-missing"
 source = ["src"]
 branch = true
 
-# Born-with sources. constellation is the governance library (op-contract,
-# manifest model, CI gate). Pinned to the forgejo-primary repo; Renovate bumps it.
+# Born-with sources. constellation is NOT pinned here: the op-contract is vendored
+# as the local `.ops` module, and the CI gate pulls constellation ephemerally
+# (`uv run --with git+…` in admit.yml), so it is neither a runtime dep nor a source.
 [tool.uv.sources]
-constellation = { git = "https://forgejo.notusmi.com/rob/constellation.git" }
 {%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
