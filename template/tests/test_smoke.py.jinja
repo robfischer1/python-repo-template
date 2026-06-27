@@ -23,7 +23,7 @@ def test_settings_load() -> None:
 
 
 def test_health_surface() -> None:
-    # Born-with operational contract from constellation.ops.
+    # Born-with operational contract from the vendored .ops module.
     state = current_health()
     assert state.live is True
     assert state.ready is True

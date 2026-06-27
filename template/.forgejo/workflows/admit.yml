@@ -156,7 +156,8 @@ jobs:
           " > migrations-list.json
             MIGRATIONS_FLAG="--migrations migrations-list.json"
           fi
-          uv run python -m constellation.gate \
+          uv run --with git+https://forgejo.notusmi.com/rob/constellation.git \
+            python -m constellation.gate \
             --star-toml star.toml \
             ${MIGRATIONS_FLAG} \
             --image-signed "${IMAGE_SIGNED}" \
