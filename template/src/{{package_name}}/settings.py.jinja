@@ -24,12 +24,19 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
     # OTel exporter target — every star ships telemetry to Hemera, the
-    # observability plane's OTLP collector, so Nyx can read its standing
-    # (see observability.py). stellar_core.otlp_endpoint() is the SDK helper.
-    otel_endpoint: str = "http://hemera:4318"
+    # observability plane's OTLP collector (live container `hemera-otelcol`), so
+    # Nyx can read its standing. observability.py appends /v1/traces + /v1/metrics.
+    otel_endpoint: str = "http://hemera-otelcol:4318"
+    # Set False to silence OTLP export (e.g. local dev with no collector).
+    otel_enabled: bool = True
 {%- if mcp %}
     host: str = "0.0.0.0"  # noqa: S104 — operator-chosen HTTP bind host
     port: int = {{ port }}
+    # Heartbeat → Pontus: the Redpanda broker the {live,ready,metrics} beat ships
+    # to (overridden to the in-network listener at deploy, e.g. chronos-redpanda:29092)
+    # and the per-star topic. confluent-kafka is the optional `kafka` extra.
+    kafka_bootstrap: str = "localhost:9092"
+    heartbeat_topic: str = "{{ service_name }}._ops.heartbeat"
 {%- endif %}
 
 

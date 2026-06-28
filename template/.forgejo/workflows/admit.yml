@@ -42,6 +42,9 @@ jobs:
         shell: bash
     container:
       image: catthehacker/ubuntu:act-22.04
+      # host network: `uv sync` resolves the stellar_core SDK from the Forgejo
+      # PyPI behind the Caddy SSO gate, which only nas01's tailnet identity clears.
+      options: --network host
     steps:
       - uses: https://github.com/actions/checkout@v4
 
