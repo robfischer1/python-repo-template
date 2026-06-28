@@ -12,10 +12,12 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-settings>=2.0",
-    # The op-contract ({live, ready, metrics}) is vendored born-with as the local
-    # `.ops` module (baked by copier from constellation) — NO constellation runtime
-    # dep. The CI gate (constellation.gate / .manifest) is a CI-time tool pulled
-    # ephemerally by .forgejo/workflows/admit.yml, not a project dependency.
+    # The op-contract ({live, ready, metrics}), the Nyx admission client, and the
+    # Hemera OTLP helper come from the stellar_core SDK — pre-baked into the
+    # stellar_core base image (warm builds), resolved from the Forgejo PyPI for
+    # local dev. The CI admission gate is still a CI-time tool pulled ephemerally
+    # by .forgejo/workflows/admit.yml, not a project dependency.
+    "stellar-core>=1.0",
 {%- if mcp %}
     # Pinned to a minor: mcp's transport-security defaults (DNS-rebinding) shift
     # across minors, and an unpinned floor let stars stamped days apart resolve
@@ -128,10 +130,14 @@ addopts = "--cov={{ package_name }} --cov-report=term-missing"
 source = ["src"]
 branch = true
 
-# Born-with sources. constellation is NOT pinned here: the op-contract is vendored
-# as the local `.ops` module, and the CI gate pulls constellation ephemerally
-# (`uv run --with git+…` in admit.yml), so it is neither a runtime dep nor a source.
+# The stellar_core SDK lives on the Forgejo PyPI. The base image bakes it in, so
+# the Docker build resolves it offline; this index is for local dev + lock gen.
+[[tool.uv.index]]
+name = "forgejo"
+url = "https://forgejo.notusmi.com/api/packages/rob/pypi/simple/"
+
 [tool.uv.sources]
+stellar-core = { index = "forgejo" }
 {%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
