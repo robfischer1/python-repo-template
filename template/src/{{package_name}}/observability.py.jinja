@@ -1,12 +1,12 @@
 """OpenTelemetry exporter wiring for {{ service_name }} (born-with stub).
 
-Every star exports traces/metrics/logs to the constellation OTel collector so
-that Nyx (the membership control plane) can read this star's runtime standing.
-This module is the wiring point; the real OTel SDK setup is filled in when the
-star starts emitting telemetry.
+Every star exports traces/metrics/logs to Hemera (the observability plane's OTLP
+collector) so that Nyx (the membership control plane) can read this star's runtime
+standing. This module is the wiring point; the real OTel SDK setup is filled in
+when the star starts emitting telemetry.
 
 The exporter target resolves from ``Settings.otel_endpoint`` (env
-``{{ package_name | upper }}_OTEL_ENDPOINT``), defaulting to the local collector.
+``{{ package_name | upper }}_OTEL_ENDPOINT``), defaulting to Hemera.
 """
 
 from __future__ import annotations

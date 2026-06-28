@@ -1,9 +1,8 @@
 """Operational health surface for {{ service_name }} (born-with).
 
-Implements the universal operational contract ({live, ready, metrics}) from
-this star's vendored ``.ops`` (baked born-with by copier from constellation's
-canonical op-contract) so this star is reachable for health over its native
-transport — the operator's 3am check and Nyx's telemetry source both read it.
+Implements the universal operational contract ({live, ready, metrics}) from the
+``stellar_core`` SDK's op-contract so this star is reachable for health over its
+native transport — the operator's 3am check and Nyx's telemetry source both read it.
 
 {% if mcp %}MCP star: exposes health via an introspection adapter (McpOpsAdapter).{% else %}Library/CLI star: exposes health via the HTTP z-page adapter (HttpOpsAdapter).{% endif %}
 Replace the static ``current_health`` body with real liveness/readiness checks.
@@ -11,7 +10,7 @@ Replace the static ``current_health`` body with real liveness/readiness checks.
 
 from __future__ import annotations
 
-from .ops import (
+from stellar_core import (
     HealthState,
 {%- if mcp %}
     McpOpsAdapter,

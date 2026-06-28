@@ -23,9 +23,10 @@ class Settings(BaseSettings):
     )
 
     log_level: str = "INFO"
-    # OTel exporter target — every star ships telemetry to the constellation
-    # collector so Nyx can read its standing (see observability.py).
-    otel_endpoint: str = "http://localhost:4318"
+    # OTel exporter target — every star ships telemetry to Hemera, the
+    # observability plane's OTLP collector, so Nyx can read its standing
+    # (see observability.py). stellar_core.otlp_endpoint() is the SDK helper.
+    otel_endpoint: str = "http://hemera:4318"
 {%- if mcp %}
     host: str = "0.0.0.0"  # noqa: S104 — operator-chosen HTTP bind host
     port: int = {{ port }}
