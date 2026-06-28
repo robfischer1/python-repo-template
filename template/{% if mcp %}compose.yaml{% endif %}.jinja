@@ -20,6 +20,10 @@ services:
       DATABASE_URL: "postgresql://{{ package_name }}:{{ '${' }}{{ db_pw_var }}:?set {{ db_pw_var }}}@{{ service_name }}-db:5432/{{ package_name }}"
       MNEMOSYNE_SCHEMA_DIR: "/app/schema"
       MNEMOSYNE_DB_ROLE: "{{ package_name }}"
+      # Heartbeat → Pontus: the Redpanda broker's in-network listener (the beat
+      # publishes to {{ service_name }}._ops.heartbeat). otel_endpoint already
+      # defaults to hemera-otelcol in settings.
+      {{ package_name | upper }}_KAFKA_BOOTSTRAP: "chronos-redpanda:29092"
     depends_on:
       {{ service_name }}-db:
         condition: service_healthy
@@ -27,6 +31,7 @@ services:
     # mnemosyne-net; {{ service_name }}-net is the private link to its sovereign DB.
     networks:
       - mnemosyne-net
+      - pantheon
       - {{ service_name }}-net
     restart: unless-stopped
 
@@ -59,6 +64,10 @@ networks:
   # External: created once by the edge stack, never by this stack.
   mnemosyne-net:
     external: true
+  # Chronos's event backbone — {{ service_name }} reaches chronos-redpanda:29092
+  # here to publish its heartbeat. External: created by Chronos's Tofu.
+  pantheon:
+    external: true
   # Private link between {{ service_name }} and its sovereign DB.
   {{ service_name }}-net:
     driver: bridge
@@ -81,16 +90,22 @@ services:
       DATABASE_URL: "${DATABASE_URL:?DATABASE_URL is required (corpus phdb)}"
       MNEMOSYNE_SCHEMA_DIR: "/app/schema"
       MNEMOSYNE_DB_ROLE: "{{ package_name }}"
+      # Heartbeat → Pontus: the Redpanda broker's in-network listener.
+      {{ package_name | upper }}_KAFKA_BOOTSTRAP: "chronos-redpanda:29092"
     ports:
       - "{{ port }}:{{ port }}"
     networks:
       - default
       - mnemosyne-net
+      - pantheon
     restart: unless-stopped
 
 networks:
   default:
   mnemosyne-net:
+    external: true
+  # Chronos's event backbone — reached for the heartbeat. External (Chronos Tofu).
+  pantheon:
     external: true
 {%- else %}
 # Per-service Docker Compose stack for {{ service_name }} (nas01).
@@ -105,7 +120,18 @@ services:
     environment:
       PORT: "{{ port }}"
       HOST: "0.0.0.0"
+      # Heartbeat → Pontus: the Redpanda broker's in-network listener.
+      {{ package_name | upper }}_KAFKA_BOOTSTRAP: "chronos-redpanda:29092"
     ports:
       - "{{ port }}:{{ port }}"
+    networks:
+      - default
+      - pantheon
     restart: unless-stopped
+
+networks:
+  default:
+  # Chronos's event backbone — reached for the heartbeat. External (Chronos Tofu).
+  pantheon:
+    external: true
 {%- endif %}

@@ -46,6 +46,13 @@ dev = [
     "pyright==1.1.410",
     "pre-commit>=3.5",
 ]
+{%- if mcp %}
+# Heartbeat publisher (the `kafka` extra): confluent-kafka backs the Producer
+# that ships {live,ready,metrics} to Pontus. Optional — a star without it just
+# doesn't beat (the MCP server still serves). Image installs it via
+# `uv sync --extra kafka` (see the Dockerfile).
+kafka = ["confluent-kafka>=2.0"]
+{%- endif %}
 {%- if sovereign_database %}
 # Sovereign Postgres driver, installed into the image via `uv sync --extra pg`
 # (see the Dockerfile). Kept an extra, not a base dep, so non-DB stars stay lean.
@@ -96,6 +103,14 @@ python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+{%- if mcp %}
+
+# confluent-kafka ships no type stubs (the optional `kafka` extra; absent in the
+# CI gate env entirely). heartbeat.py lazy-imports it — ignore the missing stubs.
+[[tool.mypy.overrides]]
+module = ["confluent_kafka.*"]
+ignore_missing_imports = true
+{%- endif %}
 
 [[tool.mypy.overrides]]
 module = ["tests.*"]
