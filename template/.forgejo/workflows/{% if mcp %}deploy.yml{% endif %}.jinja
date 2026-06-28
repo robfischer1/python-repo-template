@@ -48,6 +48,10 @@ jobs:
     runs-on: nas01
     container:
       image: catthehacker/ubuntu:act-22.04   # glibc + docker CLI + compose v2
+      # host network: the gate's `uv sync` resolves the stellar_core SDK from the
+      # Forgejo PyPI behind the Caddy SSO gate, which only nas01's tailnet identity
+      # (host network) clears. compose's build.network: host covers the nested build.
+      options: --network host
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 {%- if sovereign_database %}
@@ -95,6 +99,14 @@ jobs:
           export PATH="$HOME/.opengrep/cli/latest:$PATH"
           export LANG=C.UTF-8 LC_ALL=C.UTF-8
           opengrep scan --config rules/sast --error .
+
+      # Pull the PRIVATE stellar_core base image during build: the daemon needs a
+      # registry login first. REGISTRY_TOKEN (write:package) also covers the push.
+      - name: Registry login (pull the private base)
+        shell: bash
+        env:
+          REGISTRY_TOKEN: {% raw %}${{ secrets.REGISTRY_TOKEN }}{% endraw %}
+        run: echo "${REGISTRY_TOKEN}" | docker login forgejo.notusmi.com -u rob --password-stdin
 
       # Build the image, scan it, then deploy. Trivy BLOCKS the deploy on a
       # FIXABLE HIGH/CRITICAL image CVE; --ignore-unfixed drops base-image CVEs
