@@ -1,24 +1,28 @@
-# admit.yml — Forgejo Actions: fail-closed admission gate for constellation stars.
+# admit.yml — Forgejo Actions: thin Nyx admission gate for constellation stars.
 #
-# Baked born-with by copier (from the constellation SG5 canonical gate). A star
-# cannot merge (and therefore cannot deploy) without passing every check here.
+# Replaces the baked born-with gate (conftest/oras/bundle/constellation.gate).
+# CI computes supply-chain facts (cosign verify, syft SBOM); then posts the
+# star's facts to Nyx via stellar_core.request_admission and enforces the
+# verdict. Nyx runs the imperative checks AND the Ouranos policy consult.
 #
-# Gate sequence (each step fails the job on non-zero exit — fail-closed):
+# Gate sequence (fail-closed: any non-zero exit blocks merge):
 #
 #   1. checkout         — get the star repo at the PR ref.
-#   2. load versions    — .forgejo/versions.env -> $GITHUB_ENV (shared with
-#                         deploy.yml's signer so cosign verify == cosign sign).
-#   3. install tools    — uv, conftest, cosign, syft, oras.
-#   4. pull+verify      — read [governance] from star.toml; cosign verify (keyed,
-#                         cosign.pub) the pinned bundle; oras pull to policy/.
-#   5. supply-chain     — cosign verify (keyed) the star's image (IMAGE_SIGNED);
-#                         syft generates an SBOM (SBOM_PRESENT).
-#   6. build input      — python -m constellation.gate builds admission-input.json.
-#   7. conftest         — conftest test admission-input.json -p policy.
+#   2. load versions    — .forgejo/versions.env -> $GITHUB_ENV.
+#   3. install tools    — uv, cosign, syft.
+#   4. install deps     — uv sync (stellar_core comes from the forgejo PyPI index).
+#   5. supply-chain     — cosign verify (keyed) the star's image → IMAGE_SIGNED;
+#                         syft generates SBOM → SBOM_PRESENT.
+#   6. post to nyx      — stellar_core.request_admission posts facts to
+#                         NYX_ADMIT_URL (default http://nyx:8000/admit); exits
+#                         non-zero on deny (any reason, any failure mode).
 #
-# Tool versions: .forgejo/versions.env (single source of truth, shared with deploy).
-# Signature scheme: KEYED — verify against the committed shared key cosign.pub
-# (matches deploy.yml's `cosign sign --key`; keyless cannot verify a keyed image).
+# Environment:
+#   NYX_ADMIT_URL   Override the Nyx admission endpoint (default: http://nyx:8000/admit).
+#   REGISTRY        Container registry host (default: forgejo.notusmi.com).
+#
+# Tool versions: .forgejo/versions.env (single source, shared with deploy.yml).
+# Signature scheme: KEYED — cosign verify against cosign.pub (matches deploy.yml).
 
 name: admit
 
@@ -27,13 +31,12 @@ on:
 
 env:
   REGISTRY: ${{ vars.REGISTRY || 'forgejo.notusmi.com' }}
+  NYX_ADMIT_URL: ${{ vars.NYX_ADMIT_URL || 'http://nyx:8000/admit' }}
 
 jobs:
   gate:
     name: Admission gate
     runs-on: nas01
-    # The act runner defaults to dash, which rejects `set -o pipefail`; every step
-    # below relies on it. Pin bash for all run steps (mirrors deploy.yml).
     defaults:
       run:
         shell: bash
@@ -42,9 +45,7 @@ jobs:
     steps:
       - uses: https://github.com/actions/checkout@v4
 
-      # Single source of truth for tool versions (shared with deploy.yml's signer).
-      # Only KEY=VALUE lines are exported; comments/blanks are skipped so the
-      # $GITHUB_ENV parser never chokes.
+      # Single source of truth for tool versions (shared with deploy.yml).
       - name: Load tool versions
         run: grep -E '^[A-Z_]+=' .forgejo/versions.env >> "$GITHUB_ENV"
 
@@ -53,73 +54,27 @@ jobs:
           UV_INSTALL_DIR: /usr/local/bin
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - name: Install conftest
-        run: |
-          set -euo pipefail
-          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
-          tar -xzf "conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" conftest
-          install -m 0755 conftest /usr/local/bin/conftest
-          conftest --version
-
       - name: Install cosign
         run: |
           set -euo pipefail
-          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors \
+            "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
           install -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
           cosign version
 
       - name: Install syft
         run: |
           set -euo pipefail
-          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
           tar -xzf "syft_${SYFT_VERSION}_linux_amd64.tar.gz" syft
           install -m 0755 syft /usr/local/bin/syft
           syft version
 
-      - name: Install oras
-        run: |
-          set -euo pipefail
-          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
-          tar -xzf "oras_${ORAS_VERSION}_linux_amd64.tar.gz" -C /usr/local/bin oras
-          oras version
-
       - name: Install Python dependencies
         run: uv sync --all-extras --locked
 
-      - name: Pull and verify policy bundle
-        run: |
-          set -euo pipefail
-          BUNDLE=$(uv run python -c "
-          import tomllib, sys
-          data = tomllib.loads(open('star.toml').read())
-          g = data.get('governance')
-          if not g:
-              print('ERROR: star.toml has no [governance] block — bundle pin required', file=sys.stderr)
-              sys.exit(1)
-          print(g['bundle'].removeprefix('oci://'))
-          ")
-          TAG=$(uv run python -c "
-          import tomllib
-          data = tomllib.loads(open('star.toml').read())
-          print(data['governance']['tag'])
-          ")
-          DIGEST=$(uv run python -c "
-          import tomllib, sys
-          data = tomllib.loads(open('star.toml').read())
-          d = data['governance'].get('digest', '')
-          if not d:
-              print('ERROR: star.toml [governance].digest is required for verification', file=sys.stderr)
-              sys.exit(1)
-          print(d)
-          ")
-          FULL_REF="${BUNDLE}:${TAG}@${DIGEST}"
-          echo "Verifying bundle: ${FULL_REF}"
-          cosign verify --key cosign.pub "${FULL_REF}"
-          echo "Pulling bundle to policy/"
-          oras pull "${FULL_REF}" --output policy/
-          echo "Bundle pull complete."
-
-      - name: Supply-chain attestation
+      - name: Compute supply-chain facts
         id: supply_chain
         run: |
           set -euo pipefail
@@ -144,27 +99,49 @@ jobs:
           echo "IMAGE_SIGNED=${IMAGE_SIGNED}" >> "${GITHUB_ENV}"
           echo "SBOM_PRESENT=${SBOM_PRESENT}" >> "${GITHUB_ENV}"
 
-      - name: Build admission input
+      - name: Post facts to Nyx and enforce verdict
+        env:
+          NYX_ADMIT_URL: ${{ env.NYX_ADMIT_URL }}
         run: |
           set -euo pipefail
-          MIGRATIONS_FLAG=""
-          if [ -d migrations ]; then
-            uv run python -c "
-          import json, pathlib
-          migs = [{'file': f.name, 'namespace': ''} for f in sorted(pathlib.Path('migrations').iterdir()) if f.is_file()]
-          print(json.dumps(migs))
-          " > migrations-list.json
-            MIGRATIONS_FLAG="--migrations migrations-list.json"
-          fi
-          uv run --with git+https://forgejo.notusmi.com/rob/constellation.git \
-            python -m constellation.gate \
-            --star-toml star.toml \
-            ${MIGRATIONS_FLAG} \
-            --image-signed "${IMAGE_SIGNED}" \
-            --sbom-present "${SBOM_PRESENT}" \
-            --out admission-input.json
+          uv run python - <<'PYEOF'
+          import json
+          import pathlib
+          import sys
+          import tomllib
 
-      - name: Conftest policy evaluation
-        run: |
-          set -euo pipefail
-          conftest test admission-input.json -p policy
+          from stellar_core import request_admission
+
+          star_toml = pathlib.Path("star.toml").read_text(encoding="utf-8")
+          supply_chain = {
+              "image_signed": "${IMAGE_SIGNED}" == "true",
+              "sbom_present": "${SBOM_PRESENT}" == "true",
+          }
+
+          migrations = []
+          if pathlib.Path("migrations").is_dir():
+              migrations = [
+                  {"file": f.name, "namespace": ""}
+                  for f in sorted(pathlib.Path("migrations").iterdir())
+                  if f.is_file()
+              ]
+
+          # Optional schema-registry context (non-interstellar stars omit it).
+          registry = None
+
+          facts = {
+              "star_toml": star_toml,
+              "supply_chain": supply_chain,
+              "migrations": migrations,
+          }
+          if registry is not None:
+              facts["registry"] = registry
+
+          verdict = request_admission(facts)
+          if not verdict.admit:
+              print("ADMISSION DENIED:", file=sys.stderr)
+              for reason in verdict.reasons:
+                  print(f"  - {reason}", file=sys.stderr)
+              sys.exit(1)
+          print("Admitted.")
+          PYEOF

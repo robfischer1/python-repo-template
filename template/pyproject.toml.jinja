@@ -105,6 +105,13 @@ disallow_incomplete_defs = false
 check_untyped_defs = false
 warn_return_any = false
 
+# stellar_core is fully annotated but ships no py.typed marker yet (an SDK
+# packaging gap). Interim: silence import-untyped here. Remove once stellar_core
+# ships py.typed + republishes.
+[[tool.mypy.overrides]]
+module = ["stellar_core.*"]
+ignore_missing_imports = true
+
 [tool.pyright]
 include = ["src", "tests"]
 exclude = ["**/__pycache__", ".venv"]
