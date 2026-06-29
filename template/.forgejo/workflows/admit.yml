@@ -11,13 +11,9 @@
 #   2. load versions    — .forgejo/versions.env -> $GITHUB_ENV.
 #   3. install tools    — uv, cosign, syft.
 #   4. install deps     — uv sync (stellar_core comes from the forgejo PyPI index).
-#   5. fetch signature  — cosign triangulate resolves the image digest, then
-#                         cosign download signature fetches the signature + signed
-#                         payload. CI only TRANSPORTS them — Nyx verifies the crypto
-#                         itself (against the committed cosign.pub), so a forged or
-#                         absent signature cannot be admitted. syft → SBOM_PRESENT.
-#   6. post to nyx      — stellar_core.request_admission posts {star_toml,
-#                         image_digest, signature, payload, sbom_present} to
+#   5. supply-chain     — cosign verify (keyed) the star's image → IMAGE_SIGNED;
+#                         syft generates SBOM → SBOM_PRESENT.
+#   6. post to nyx      — stellar_core.request_admission posts facts to
 #                         NYX_ADMIT_URL (default http://nyx:8000/admit); exits
 #                         non-zero on deny (any reason, any failure mode).
 #
@@ -26,8 +22,7 @@
 #   REGISTRY        Container registry host (default: forgejo.notusmi.com).
 #
 # Tool versions: .forgejo/versions.env (single source, shared with deploy.yml).
-# Signature scheme: KEYED — Nyx verifies the posted signature against cosign.pub
-# in-process (the same key deploy.yml signs with); CI only fetches + transports it.
+# Signature scheme: KEYED — cosign verify against cosign.pub (matches deploy.yml).
 
 name: admit
 
@@ -82,43 +77,30 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras --locked
 
-      - name: Fetch image signature for Nyx to verify
+      - name: Compute supply-chain facts
         id: supply_chain
         run: |
           set -euo pipefail
-          IMAGE_DIGEST=""; SIGNATURE=""; PAYLOAD=""; SBOM_PRESENT="false"
+          IMAGE_SIGNED="false"
+          SBOM_PRESENT="false"
           IMAGE_REF=$(uv run python -c "
           import tomllib
           data = tomllib.loads(open('star.toml').read())
           print(data.get('image', {}).get('ref', ''))
           " 2>/dev/null || true)
           if [ -n "${IMAGE_REF}" ]; then
-            echo "Resolving signature for image: ${IMAGE_REF}"
-            # Resolve the real image digest from the registry (sig tag -> digest),
-            # independent of the payload, so Nyx's digest-binding check is meaningful.
-            SIGTAG=$(cosign triangulate "${IMAGE_REF}" 2>/dev/null || true)
-            if [ -n "${SIGTAG}" ]; then
-              D=$(printf '%s' "${SIGTAG}" | sed -E 's/.*:sha256-([0-9a-f]{64})\.sig$/\1/')
-              REPO="${IMAGE_REF%@*}"; REPO="${REPO%:*}"
-              IMAGE_DIGEST="${REPO}@sha256:${D}"
-              # Download the signature + signed payload — the material Nyx verifies
-              # offline against the committed cosign.pub. CI only transports it.
-              SIGJSON=$(cosign download signature "${IMAGE_DIGEST}" 2>/dev/null | head -1 || true)
-              SIGNATURE=$(printf '%s' "${SIGJSON}" | jq -r '.Base64Signature // empty')
-              PAYLOAD=$(printf '%s' "${SIGJSON}" | jq -r '.Payload // empty')
+            echo "Checking supply-chain for image: ${IMAGE_REF}"
+            if cosign verify --key cosign.pub "${IMAGE_REF}" 2>/dev/null; then
+              IMAGE_SIGNED="true"
             fi
             if syft "${IMAGE_REF}" -o spdx-json --file sbom.spdx.json 2>/dev/null; then
               SBOM_PRESENT="true"
             fi
           else
-            echo "No image ref in star.toml — no signature to post (Nyx will deny)"
+            echo "No image ref in star.toml — supply-chain not attested (IMAGE_SIGNED=false)"
           fi
-          {
-            echo "IMAGE_DIGEST=${IMAGE_DIGEST}"
-            echo "SIGNATURE=${SIGNATURE}"
-            echo "PAYLOAD=${PAYLOAD}"
-            echo "SBOM_PRESENT=${SBOM_PRESENT}"
-          } >> "${GITHUB_ENV}"
+          echo "IMAGE_SIGNED=${IMAGE_SIGNED}" >> "${GITHUB_ENV}"
+          echo "SBOM_PRESENT=${SBOM_PRESENT}" >> "${GITHUB_ENV}"
 
       - name: Post facts to Nyx and enforce verdict
         env:
@@ -134,6 +116,10 @@ jobs:
           from stellar_core import request_admission
 
           star_toml = pathlib.Path("star.toml").read_text(encoding="utf-8")
+          supply_chain = {
+              "image_signed": "${IMAGE_SIGNED}" == "true",
+              "sbom_present": "${SBOM_PRESENT}" == "true",
+          }
 
           migrations = []
           if pathlib.Path("migrations").is_dir():
@@ -148,10 +134,7 @@ jobs:
 
           facts = {
               "star_toml": star_toml,
-              "image_digest": "${IMAGE_DIGEST}",
-              "signature": "${SIGNATURE}",
-              "payload": "${PAYLOAD}",
-              "supply_chain": {"sbom_present": "${SBOM_PRESENT}" == "true"},
+              "supply_chain": supply_chain,
               "migrations": migrations,
           }
           if registry is not None:
