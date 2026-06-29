@@ -46,7 +46,7 @@ jobs:
       # PyPI behind the Caddy SSO gate, which only nas01's tailnet identity clears.
       options: --network host
     steps:
-      - uses: https://github.com/actions/checkout@v4
+      - uses: https://github.com/actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Single source of truth for tool versions (shared with deploy.yml).
       - name: Load tool versions
