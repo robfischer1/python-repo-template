@@ -77,12 +77,13 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-extras --locked
 
-      - name: Compute supply-chain facts
+      - name: Compute supply-chain facts + fetch the cosign v3 signature
         id: supply_chain
         run: |
           set -euo pipefail
           IMAGE_SIGNED="false"
           SBOM_PRESENT="false"
+          rm -f /tmp/verify.json /tmp/sigs.ndjson
           IMAGE_REF=$(uv run python -c "
           import tomllib
           data = tomllib.loads(open('star.toml').read())
@@ -90,8 +91,16 @@ jobs:
           " 2>/dev/null || true)
           if [ -n "${IMAGE_REF}" ]; then
             echo "Checking supply-chain for image: ${IMAGE_REF}"
-            if cosign verify --key cosign.pub "${IMAGE_REF}" 2>/dev/null; then
+            # Keyed verify: the boolean fact + (via -o json) cosign's authoritative
+            # resolution of the image digest, parsed in the post step. cosign v3
+            # stores the signature as a sigstore bundle (OCI referrer); `download
+            # signature` emits NDJSON of ALL bundles (the image signature + the
+            # sibling SBOM attestation) — the post step selects the image signature
+            # by its in-toto predicateType so Nyx verifies the right artifact.
+            if cosign verify --key cosign.pub --insecure-ignore-tlog=true \
+                 "${IMAGE_REF}" -o json > /tmp/verify.json 2>/dev/null; then
               IMAGE_SIGNED="true"
+              cosign download signature "${IMAGE_REF}" > /tmp/sigs.ndjson 2>/dev/null || true
             fi
             if syft "${IMAGE_REF}" -o spdx-json --file sbom.spdx.json 2>/dev/null; then
               SBOM_PRESENT="true"
@@ -108,6 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           uv run python - <<'PYEOF'
+          import base64
           import json
           import pathlib
           import sys
@@ -115,11 +125,50 @@ jobs:
 
           from stellar_core import request_admission
 
+          _SIGN_PREDICATE = "https://sigstore.dev/cosign/sign/v1"
+
           star_toml = pathlib.Path("star.toml").read_text(encoding="utf-8")
           supply_chain = {
               "image_signed": "${IMAGE_SIGNED}" == "true",
               "sbom_present": "${SBOM_PRESENT}" == "true",
           }
+
+          # cosign's authoritative digest of the verified image (-o json); Nyx binds
+          # the signature to THIS digest. Every entry carries the same image digest.
+          verify_path = pathlib.Path("/tmp/verify.json")
+          if verify_path.is_file():
+              try:
+                  for entry in json.loads(verify_path.read_text()):
+                      digest = (
+                          entry.get("critical", {})
+                          .get("image", {})
+                          .get("docker-manifest-digest")
+                      )
+                      if digest:
+                          supply_chain["image_digest"] = digest
+                          break
+              except (ValueError, OSError):
+                  pass
+
+          # Select the cosign v3 image-signature bundle (a DSSE envelope with the
+          # cosign/sign/v1 predicate) from the NDJSON cosign emitted — NOT the
+          # sibling CycloneDX SBOM attestation — and post it for Nyx to verify.
+          sigs_path = pathlib.Path("/tmp/sigs.ndjson")
+          if sigs_path.is_file():
+              for line in sigs_path.read_text().splitlines():
+                  line = line.strip()
+                  if not line:
+                      continue
+                  try:
+                      obj = json.loads(line)
+                      stmt = json.loads(
+                          base64.b64decode(obj["dsseEnvelope"]["payload"]),
+                      )
+                  except (ValueError, KeyError, TypeError):
+                      continue
+                  if stmt.get("predicateType") == _SIGN_PREDICATE:
+                      supply_chain["signature_bundle"] = obj
+                      break
 
           migrations = []
           if pathlib.Path("migrations").is_dir():
