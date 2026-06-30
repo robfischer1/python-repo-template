@@ -17,7 +17,7 @@ dependencies = [
     # stellar_core base image (warm builds), resolved from the Forgejo PyPI for
     # local dev. The CI admission gate is still a CI-time tool pulled ephemerally
     # by .forgejo/workflows/admit.yml, not a project dependency.
-    "stellar-core>=1.0.2",
+    "stellar-core>=1.0.3",
 {%- if mcp %}
     # Pinned to a minor: mcp's transport-security defaults (DNS-rebinding) shift
     # across minors, and an unpinned floor let stars stamped days apart resolve
