@@ -16,13 +16,13 @@
 #   4. install deps  — uv sync (stellar_core, for build_admission_input).
 #   5. supply-chain  — cosign verify (keyed) the star's image -> IMAGE_SIGNED; syft -> SBOM.
 #   6. policy        — cosign verify + pull the pinned ouranos:policy-vN.
-#   7. roster        — pull the Telescope fleet roster (stub until telescope:epoch-N ships).
+#   7. roster        — cosign-verify + oras-pull the Telescope fleet roster (telescope:epoch-N).
 #   8. eval          — build the input (stellar_core), `docker run` the eval image;
 #                      exit 0 = admit, non-zero = deny (with reasons) / error (fail-closed).
 #
 # Environment (the [governance] pins; bump via Renovate):
 #   OURANOS_IMAGE    the signed policy authority (default ouranos:policy-v1).
-#   TELESCOPE_IMAGE  the signed fleet roster (default telescope:epoch-latest).
+#   TELESCOPE_IMAGE  the signed fleet roster (default telescope:epoch-1).
 #   REGISTRY         container registry host (default forgejo.notusmi.com).
 #
 # Tool versions: .forgejo/versions.env. Signature scheme: KEYED (cosign.pub).
@@ -35,7 +35,7 @@ on:
 env:
   REGISTRY: ${{ vars.REGISTRY || 'forgejo.notusmi.com' }}
   OURANOS_IMAGE: ${{ vars.OURANOS_IMAGE || 'forgejo.notusmi.com/rob/ouranos:policy-v1' }}
-  TELESCOPE_IMAGE: ${{ vars.TELESCOPE_IMAGE || 'forgejo.notusmi.com/rob/telescope:epoch-latest' }}
+  TELESCOPE_IMAGE: ${{ vars.TELESCOPE_IMAGE || 'forgejo.notusmi.com/rob/telescope:epoch-1' }}
 
 jobs:
   gate:
@@ -78,6 +78,15 @@ jobs:
           install -m 0755 syft /usr/local/bin/syft
           syft version
 
+      - name: Install oras
+        run: |
+          set -euo pipefail
+          curl -LO --fail --retry 5 --retry-delay 2 --retry-all-errors \
+            "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz"
+          tar -xzf "oras_${ORAS_VERSION}_linux_amd64.tar.gz" oras
+          install -m 0755 oras /usr/local/bin/oras
+          oras version
+
       - name: Install Python dependencies
         run: uv sync --all-extras --locked
 
@@ -116,14 +125,17 @@ jobs:
           cosign verify --key cosign.pub --insecure-ignore-tlog=true "${OURANOS_IMAGE}"
           docker pull "${OURANOS_IMAGE}"
 
-      - name: Pull the fleet roster (Telescope)
+      - name: Verify + pull the fleet roster (Telescope)
         run: |
           set -euo pipefail
-          # TODO(Telescope): once telescope:epoch-N is published, pull the signed
-          # roster artifact (oras pull "${TELESCOPE_IMAGE}" -> /tmp/fleet.json) and
-          # cosign-verify it. Until then, a stub keeps the cross-star rules inert.
-          echo '{"fleet":{}}' > /tmp/fleet.json
-          echo "roster: stub (cross-star rules inert until Telescope ships)"
+          # Trust the roster before its verdict: signed by the constellation key
+          # (cosign.pub), same as the policy image + every star.
+          cosign verify --key cosign.pub --insecure-ignore-tlog=true "${TELESCOPE_IMAGE}"
+          # The artifact is one layer (roster.json) — the bare fleet object {map, topics}.
+          # The rego reads it as data.fleet, so wrap it for the eval's --data layout.
+          ( cd /tmp && oras pull "${TELESCOPE_IMAGE}" )
+          jq '{fleet: .}' /tmp/roster.json > /tmp/fleet.json
+          echo "roster: telescope ($(jq '.fleet.map | length' /tmp/fleet.json) stars, $(jq '.fleet.topics | length' /tmp/fleet.json) topics)"
 
       - name: Build the admission input
         run: |
