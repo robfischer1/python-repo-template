@@ -141,8 +141,12 @@ jobs:
           IMG=$(docker compose config --images | head -1)
 {%- endif %}
           echo "scanning image: $IMG"
+          # Persist Trivy's vuln DB across runs (named volume on nas01's daemon)
+          # so it isn't re-downloaded every CI — caches definitions, not scan
+          # results, so it can never hide a CVE.
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-db-cache:/root/.cache/trivy \
             aquasec/trivy:latest image \
             --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress \
             "$IMG"
