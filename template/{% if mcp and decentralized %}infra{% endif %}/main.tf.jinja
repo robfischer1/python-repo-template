@@ -1,0 +1,33 @@
+# {{ service_name }}/infra — the star's own deploy (Smaller Hammers, scaffolded
+# by python-repo-template's F8 genesis leg).
+#
+# Wiring facts come from the TELESCOPE fleet contract (F3): the deploy pipeline
+# (.forgejo/workflows/deploy.yml, tofu-managed) pulls + cosign-verifies the
+# signed epoch artifact and materializes it as infra/fleet.json (gitignored)
+# before every plan/apply. No repo reads the core state (the sole-reader rule).
+locals {
+  fleet = jsondecode(file("${path.module}/fleet.json"))
+}
+
+module "star" {
+  # The shared star module, pinned to a foundry ref. Bumping the ref is a
+  # reviewable infra PR; the deploy pipeline authenticates the fetch via git
+  # extraheader (the module origin is private).
+  source = "git::https://forgejo.notusmi.com/rob/foundry.git//infra/star?ref=main"
+
+  name        = "{{ service_name }}"
+  image       = var.image
+  networks    = [local.fleet.network]
+{% if verb_prefix %}  verb_prefix = "{{ verb_prefix }}"
+{% endif %}  listen_port = {{ port }}
+
+  # F4: the container boots with its Pistis identity (TS_AUTHKEY) and fetches
+  # its own secrets from Calypso — no secrets injected here.
+  secrets = {}
+}
+
+variable "image" {
+  description = "The sha-pinned image ref the build step publishes. The deploy pipeline passes the freshly-built digest; the default floats to :latest for the first apply."
+  type        = string
+  default     = "forgejo.notusmi.com/rob/{{ service_name }}:latest"
+}

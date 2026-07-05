@@ -80,6 +80,24 @@ port:
   default: 8000
   when: "{{ mcp }}"
 
+verb_prefix:
+  type: str
+  help: "Hades verb namespace (e.g. 'graph'); blank = bare verbs. Rendered into the /infra roster row + hades route table."
+  default: ""
+  when: "{{ mcp }}"
+
+# --- Decentralized deploy (Smaller Hammers) ---------------------------------
+# A decentralized star owns its deploy: its /infra lives here (this template
+# scaffolds it), applied by the GitOps deploy plane against isolated pg state.
+# Its build/deploy pipelines are TOFU-MANAGED from the foundry core (the F5
+# managed-CI plane), so furnace pours only the PR gates (code-repo-sdd-
+# decentralized). Off = the legacy shape (furnace pours the full CI trio).
+decentralized:
+  type: bool
+  help: "Own /infra + tofu-managed build/deploy pipelines (Smaller Hammers)? Off = legacy furnace-poured CI trio."
+  default: true
+  when: "{{ mcp }}"
+
 author_name:
   type: str
   help: Copyright holder / author
@@ -168,8 +186,12 @@ _tasks:
   # `specify init` so the override skill overwrites spec-kit's core one.
   # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
   # whole stamp (copier task semantics) — intentional: no half-governed repo.
-  - command: furnace ignite . --kit code-repo-sdd
+  - command: furnace ignite . --kit {{ 'code-repo-sdd-decentralized' if (mcp and decentralized) else 'code-repo-sdd' }}
     when: "{{ _copier_operation == 'copy' }}"
+  # NOTE: the scaffolded /infra is validated by the deploy plane's plan-on-PR
+  # (the tofu-managed deploy.yml runs `tofu plan` with the module-fetch auth on
+  # the first infra PR) — no scaffold-time tofu step, so copier needs no docker
+  # or Forgejo creds to stamp a star.
   # Verify the plan-command override resolves as the project-tier winner.
   - command: specify preset resolve speckit.plan
     when: "{{ _copier_operation == 'copy' }}"
