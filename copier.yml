@@ -109,9 +109,12 @@ year:
   default: 2026
 
 # --- Star manifest (constellation) ------------------------------------------
-# These answers generate a born-conformant `star.toml` (the constellation
-# StarManifest keystone). Every stamped repo is a candidate star; the admission
-# gate (.forgejo/workflows/admit.yml) reads star.toml at PR time.
+# star.toml is NO LONGER stamped by copier (template/star.toml.jinja retired):
+# hephaestus's derivation is its sole author (the derived port/image/interface
+# keys are authoritative, and copier can't derive a port). These answers remain
+# as identity inputs some other template files read; hephaestus re-authors
+# star.toml on strike + reconciles it on anneal. The admission gate
+# (.forgejo/workflows/admit.yml) still reads the resulting star.toml at PR time.
 
 charter:
   type: str
