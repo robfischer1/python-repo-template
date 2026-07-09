@@ -6,3 +6,6 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+
+# Gemini Code Reviews
+2026-07-09 Gemini * Code Review.md
