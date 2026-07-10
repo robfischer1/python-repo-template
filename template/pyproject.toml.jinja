@@ -2,12 +2,12 @@
 name = "{{ service_name }}"
 dynamic = ["version"]
 description = "{{ description }}"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = "Apache-2.0"
 authors = [{ name = "{{ author_name }}" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -99,7 +99,7 @@ ignore = [
 "tests/**" = ["S", "PT", "ANN", "D", "ARG", "PLR2004", "SLF001", "INP001", "ERA001", "E402", "PLW1510"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -124,7 +124,7 @@ warn_return_any = false
 include = ["src", "tests"]
 exclude = ["**/__pycache__", ".venv"]
 typeCheckingMode = "strict"
-pythonVersion = "3.12"
+pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
 reportUnnecessaryTypeIgnoreComment = false
