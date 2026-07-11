@@ -156,9 +156,11 @@ _tasks:
   # standard Forge remote pattern. The remote repo must still be created on
   # Forgejo first (push-to-create is disabled instance-wide); these only wire
   # the local remotes to the convention so `git push -u origin main` is ready.
-  - command: git remote add origin https://forgejo.notusmi.com/rob/{{ service_name }}.git
+  # Idempotent (set-url-or-add): a re-strike into a reused workdir must converge,
+  # not die on "remote origin already exists" — the strike contract is idempotent.
+  - command: git remote set-url origin https://forgejo.notusmi.com/rob/{{ service_name }}.git 2>/dev/null || git remote add origin https://forgejo.notusmi.com/rob/{{ service_name }}.git
     when: "{{ _copier_operation == 'copy' }}"
-  - command: git remote add github https://github.com/robfischer1/{{ service_name }}.git
+  - command: git remote set-url github https://github.com/robfischer1/{{ service_name }}.git 2>/dev/null || git remote add github https://github.com/robfischer1/{{ service_name }}.git
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv sync --extra dev
     when: "{{ _copier_operation == 'copy' }}"
