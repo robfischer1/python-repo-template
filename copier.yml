@@ -180,8 +180,10 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
   # fights furnace's CLAUDE.md @AGENTS.md shim, which furnace repours every ignite.
-  # The extension is deprecated (removed in spec-kit 0.12.0) — disable it now.
-  - command: specify extension disable agent-context
+  # The extension is deprecated (removed in spec-kit 0.12.0); `|| true` makes this a
+  # no-op on >=0.12.0 (where `disable` errors "not installed" and would fail the whole
+  # strike) while still disabling it on any older spec-kit that predates the removal.
+  - command: specify extension disable agent-context || true
     when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
   # code-repo-sdd = code-repo + the speckit surface (.specify/ overrides + the
