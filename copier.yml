@@ -193,7 +193,12 @@ _tasks:
   # `specify init` so the override skill overwrites spec-kit's core one.
   # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
   # whole stamp (copier task semantics) — intentional: no half-governed repo.
-  - command: furnace ignite . --kit {{ 'code-repo-sdd-decentralized' if (mcp and decentralized) else 'code-repo-sdd' }}
+  # --hammer: this task is copy-only (strike), so the workdir is a born-fresh
+  # copier+spec-kit scaffold with no real local edits to protect; ignite is the
+  # designed last writer over it (it overwrites spec-kit's core speckit-plan skill),
+  # so override stoke's clobber guard. The guard still protects an existing star on
+  # anneal/update, which re-pours governance a different way (not via this copy-task).
+  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd-decentralized' if (mcp and decentralized) else 'code-repo-sdd' }}
     when: "{{ _copier_operation == 'copy' }}"
   # NOTE: the scaffolded /infra is validated by the deploy plane's plan-on-PR
   # (the tofu-managed deploy.yml runs `tofu plan` with the module-fetch auth on
