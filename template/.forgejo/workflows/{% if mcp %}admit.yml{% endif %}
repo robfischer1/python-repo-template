@@ -1,0 +1,8 @@
+# Caller stub (Flame pull-CI) — logic in foundry/foundry-stocks; invariant, copier-shipped.
+name: admit
+on:
+  pull_request:
+jobs:
+  admit:
+    uses: foundry/foundry-stocks/.forgejo/workflows/admit.yml@main
+    secrets: inherit

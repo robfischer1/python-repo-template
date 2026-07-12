@@ -1,0 +1,13 @@
+# Caller stub (Flame pull-CI) — logic lives in foundry/foundry-stocks; invariant,
+# copier-shipped. Retires the ci.tf pour + the launcher/channel.
+name: ci
+on:
+  pull_request:
+    paths-ignore:
+      - "infra/**"
+      - ".forgejo/**"
+      - "**.md"
+jobs:
+  ci:
+    uses: foundry/foundry-stocks/.forgejo/workflows/ci.yml@main
+    secrets: inherit

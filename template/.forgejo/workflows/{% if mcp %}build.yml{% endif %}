@@ -1,0 +1,13 @@
+# Caller stub (Flame pull-CI) — logic in foundry/foundry-stocks; invariant, copier-shipped.
+name: build
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".forgejo/**"
+      - "infra/**"
+jobs:
+  build:
+    uses: foundry/foundry-stocks/.forgejo/workflows/build.yml@main
+    secrets: inherit
