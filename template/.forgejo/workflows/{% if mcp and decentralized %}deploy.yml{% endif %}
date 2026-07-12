@@ -1,5 +1,15 @@
 # Caller stub (Flame pull-CI) — logic in foundry/foundry-stocks; invariant, copier-shipped.
+#
+# enable-openid-connect MUST be declared at WORKFLOW level here (and at workflow level in
+# the callee). Forgejo does not honour a JOB-level declaration anywhere in the reusable
+# path: the runner then injects no ACTIONS_ID_TOKEN_REQUEST_*, and the zero-credential
+# deploy dies with "runner did not inject the OIDC id-token endpoint". Proven on oceanus:
+# runs #171/#172/#180/#183 (job-level only -> dead) vs #189 (workflow-level -> green, a
+# real tofu plan over Calypso /fleet). The job-level copy below is belt-and-braces.
 name: deploy
+
+enable-openid-connect: true
+
 on:
   pull_request:
     paths: ["infra/**"]
@@ -8,5 +18,6 @@ on:
     paths: ["infra/**"]
 jobs:
   deploy:
+    enable-openid-connect: true
     uses: foundry/foundry-stocks/.forgejo/workflows/deploy.yml@main
     secrets: inherit
