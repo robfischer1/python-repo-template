@@ -1,5 +1,12 @@
 # Caller stub (Flame pull-CI) — logic in foundry/foundry-stocks; invariant, copier-shipped.
+# enable-openid-connect at WORKFLOW level (and on the uses: job): the build's pin-bump
+# resolves a write-capable DEPLOY_TOKEN from Calypso /fleet over Forgejo-OIDC — the stored
+# token was removed from most stars by the OIDC migration. Forgejo silently ignores a
+# job-level-only declaration anywhere in the reusable path.
 name: build
+
+enable-openid-connect: true
+
 on:
   push:
     branches: [main]
@@ -9,6 +16,7 @@ on:
       - "infra/**"
 jobs:
   build:
+    enable-openid-connect: true
     uses: foundry/foundry-stocks/.forgejo/workflows/build.yml@main
     # pragma comment: detect-secrets flags the word 'secrets' as a Secret Keyword,
     # and `secrets: inherit` is the reusable-workflow idiom, not a credential.
