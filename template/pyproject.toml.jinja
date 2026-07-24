@@ -86,6 +86,9 @@ line-length = 80
 select = ["ALL"]
 ignore = [
     "COM", "ISC", "Q", "E501",
+    # No copyright headers fleet-wide (license lives in pyproject + LICENSE);
+    # ruff 0.16 newly enables CPY001 under select=ALL, so suppress the CPY group.
+    "CPY",
     "D203", "D213",
     "ANN001", "ANN002", "ANN003", "ANN202", "ANN204", "ANN401",
     "EM", "TRY003",
