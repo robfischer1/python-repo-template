@@ -10,6 +10,39 @@
 _subdirectory: template
 _min_copier_version: "9.0.0"
 
+# `_skip_if_exists` = every rendered path EXCEPT the two seams (pyproject.toml +
+# .gitignore). It scopes copier to what copier is good at: create-if-absent for
+# the star-owned stubs (README/docs/source) on birth, and a 3-way merge for the
+# seams on update — nothing else. A star builds out its README and src after
+# birth; a `copier update`/anneal must NOT 3-way-merge them (the fleet-wide
+# README conflict that failed the anneal arm closed). The foundry conformance
+# files (.forgejo, pre-commit, editorconfig, …) are skipped here so update never
+# conflicts them; anneal CLOBBERS them from a fresh render (Flame C2) — a
+# conformance surface is enforced, not merged. Paths are RENDERED destination
+# paths (template/ stripped by _subdirectory, .jinja stripped). Kept in sync
+# with hephaestus `ownership.py`'s non-seam set (Flame C1).
+_skip_if_exists:
+  # star-owned: rendered once at birth, then the star's
+  - README.md
+  - CHANGELOG.md
+  - CONTRIBUTING.md
+  - CODE_OF_CONDUCT.md
+  - LICENSE
+  - SECURITY.md
+  - src/**
+  - tests/**
+  # foundry conformance: skipped here, clobbered by anneal (C2)
+  - .editorconfig
+  - .python-version
+  - .dockerignore
+  - .pre-commit-config.yaml
+  - .forgejo/**
+  - .github/**
+  - rules/**
+  - cosign.pub
+  # retiring (Flame C4) — skip until the removal hook lands
+  - infra/**
+
 project_name:
   type: str
   help: Human-readable project name (e.g. "Widget MCP")
