@@ -86,9 +86,6 @@ line-length = 80
 select = ["ALL"]
 ignore = [
     "COM", "ISC", "Q", "E501",
-    # No copyright headers fleet-wide (license lives in pyproject + LICENSE);
-    # ruff 0.16 newly enables CPY001 under select=ALL, so suppress the CPY group.
-    "CPY",
     "D203", "D213",
     "ANN001", "ANN002", "ANN003", "ANN202", "ANN204", "ANN401",
     "EM", "TRY003",
@@ -100,6 +97,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "PT", "ANN", "D", "ARG", "PLR2004", "SLF001", "INP001", "ERA001", "E402", "PLW1510"]
+
+# CPY001 (ruff 0.16): accept the REUSE / SPDX per-file header
+# (`# SPDX-FileCopyrightText: <year> <holder>`, stamped by this template + by
+# `reuse annotate` on new files per repo) instead of ruff's default literal
+# "Copyright <year>".
+[tool.ruff.lint.flake8-copyright]
+notice-rgx = '(?i)SPDX-FileCopyrightText:.*\d{4}'
 
 [tool.mypy]
 python_version = "3.14"
