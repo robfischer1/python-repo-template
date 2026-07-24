@@ -40,8 +40,6 @@ _skip_if_exists:
   - .github/**
   - rules/**
   - cosign.pub
-  # retiring (Flame C4) — skip until the removal hook lands
-  - infra/**
 
 project_name:
   type: str
@@ -119,17 +117,13 @@ verb_prefix:
   default: ""
   when: "{{ mcp }}"
 
-# --- Decentralized deploy (Smaller Hammers) ---------------------------------
-# A decentralized star owns its deploy: its /infra lives here (this template
-# scaffolds it), applied by the GitOps deploy plane against isolated pg state.
-# Its build/deploy pipelines are TOFU-MANAGED from the foundry core (the F5
+# --- Deploy shape --------------------------------------------------------------
+# The `decentralized` question is RETIRED (Flame C4/C6, decoupled): it conflated
+# two things recentralization split apart -- a star no longer owns its `/infra`
+# (the tofu ROOTS live in rob/infra now, so this template scaffolds NO infra/),
+# but every mcp star's build/deploy IS tofu-managed from the foundry core (the F5
 # managed-CI plane), so furnace pours only the PR gates (code-repo-sdd-
-# decentralized). Off = the legacy shape (furnace pours the full CI trio).
-decentralized:
-  type: bool
-  help: "Own /infra + tofu-managed build/deploy pipelines (Smaller Hammers)? Off = legacy furnace-poured CI trio."
-  default: true
-  when: "{{ mcp }}"
+# decentralized). That kit choice now rides `mcp` alone (see the ignite _task).
 
 author_name:
   type: str
@@ -183,6 +177,18 @@ _tasks:
   # end-of-file-fixer pre-commit hook -> a red CI gate on the first PR of every
   # stamped/updated repo. Ungated: runs on BOTH copy and update.
   - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
+  # Flame C4 -- migrate a pre-recentralization star. Recentralization moved the
+  # tofu ROOTS to rob/infra, so the star-local `infra/` tree + `compose.yaml` are
+  # dead weight; the ONE thing the star still owns -- its sovereign spec -- is
+  # RELOCATED to `{star}.tfvars` at root (rob/infra harvests it as
+  # catalog/{star}.tfvars). MOVE before REMOVE so the operator's env survives.
+  # Update-only (a fresh copy has neither); idempotent (a migrated star no-ops via
+  # the existence guard + --ignore-unmatch). The removals land because anneal's
+  # verdict rules the retired shapes REMOVABLE (Flame C5).
+  - command: test -f infra/terraform.tfvars && git mv -f infra/terraform.tfvars {{ service_name }}.tfvars || true
+    when: "{{ _copier_operation == 'update' and mcp }}"
+  - command: git rm -r --ignore-unmatch --quiet compose.yaml infra || true
+    when: "{{ _copier_operation == 'update' and mcp }}"
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
   # Forgejo is git-primary (origin); GitHub is the push-mirror target — the
@@ -231,12 +237,15 @@ _tasks:
   # designed last writer over it (it overwrites spec-kit's core speckit-plan skill),
   # so override stoke's clobber guard. The guard still protects an existing star on
   # anneal/update, which re-pours governance a different way (not via this copy-task).
-  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd-decentralized' if (mcp and decentralized) else 'code-repo-sdd' }}
+  # The kit rides `mcp` alone (Flame C6, decoupled from the retired
+  # `decentralized`): an mcp star is tofu-managed from the foundry core, so
+  # furnace pours only the PR gates (code-repo-sdd-decentralized); a plain
+  # library takes the base code-repo-sdd.
+  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd-decentralized' if mcp else 'code-repo-sdd' }}
     when: "{{ _copier_operation == 'copy' }}"
-  # NOTE: the scaffolded /infra is validated by the deploy plane's plan-on-PR
-  # (the tofu-managed deploy.yml runs `tofu plan` with the module-fetch auth on
-  # the first infra PR) — no scaffold-time tofu step, so copier needs no docker
-  # or Forgejo creds to stamp a star.
+  # NOTE: a star no longer scaffolds `/infra` (Flame C4) — the tofu roots live in
+  # rob/infra, which harvests the sovereign shape from the star's {star}.tfvars.
+  # copier needs no docker or Forgejo creds to stamp a star.
   # Verify the plan-command override resolves as the project-tier winner.
   - command: specify preset resolve speckit.plan
     when: "{{ _copier_operation == 'copy' }}"
