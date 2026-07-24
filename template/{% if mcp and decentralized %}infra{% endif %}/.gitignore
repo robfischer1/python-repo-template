@@ -1,4 +1,0 @@
-# Materialized per-run by the deploy pipeline (the telescope contract) — never committed.
-fleet.json
-.terraform/
-*.tfplan
