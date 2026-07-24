@@ -1,10 +1,18 @@
-# Pre-commit hooks: lint (ruff), secret scan (detect-secrets), basic hygiene.
-# Install once: `pre-commit install`. The .secrets.baseline is generated on first
-# scaffold (copier _tasks) via `detect-secrets scan > .secrets.baseline`.
+# Pre-commit hooks — the LOCAL half of the CI gate, so local and CI cannot drift.
+# pre-commit stage: fast lint/hygiene (ruff, detect-secrets). pre-PUSH stage: the
+# heavy checks the reusable python ci.yml runs (mypy, pyright, pytest, pip-audit,
+# opengrep) — kept off `pre-commit` so commits stay fast, but run before a push
+# reaches the door/CI. CI (baked image) is the hard enforce; a dev box missing a
+# non-project tool (opengrep) gets a notice, not a block.
+#
+# Install (copier _tasks does this on scaffold): `uv run pre-commit install`.
+# default_install_hook_types wires pre-commit + pre-push in that one call. The
+# .secrets.baseline is generated on first scaffold via `detect-secrets scan`.
 #
 # furnace owns .claude/ .specify/ .furnace/ (deployed by `furnace stoke`/`quench`).
 # Exclude that managed surface from every hook: hygiene fixers would mangle the
 # deployed content into drift, and detect-secrets trips on the manifest's hashes.
+default_install_hook_types: [pre-commit, pre-push]
 exclude: '^\.(claude|specify|furnace)/'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -26,3 +34,49 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
+  # CI-parity heavy gate (pre-push). Mirrors the reusable python ci.yml's
+  # `mypy src tests` / `pyright` / `pytest` / pip-audit / opengrep steps.
+  # language: system + `uv run` so they use the project's synced env — the same
+  # interpreter+deps CI uses (uv sync --all-extras), so a green pre-push means a
+  # green CI. Type/test tools are project dev-deps (always present via uv run);
+  # opengrep is a system binary, so it degrades to a notice when absent.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (CI parity — pre-push)
+        entry: uv run mypy src tests
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        types: [python]
+      - id: pyright
+        name: pyright (CI parity — pre-push)
+        entry: uv run pyright
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        types: [python]
+      - id: pytest
+        name: pytest (CI parity — pre-push)
+        entry: uv run pytest -q
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        types: [python]
+      - id: pip-audit
+        name: pip-audit dependency vuln scan (CI parity — pre-push)
+        entry: uv run --with pip-audit pip-audit
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+      - id: opengrep-sast
+        name: opengrep SAST (CI parity — pre-push; notice if absent)
+        entry: >-
+          bash -c 'command -v opengrep >/dev/null 2>&1 ||
+          { echo "opengrep not installed — skipping SAST locally (CI enforces)"; exit 0; };
+          export LANG=C.UTF-8 LC_ALL=C.UTF-8; opengrep scan --config rules/sast --error .'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
