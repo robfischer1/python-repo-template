@@ -1,0 +1,13 @@
+# Caller stub — this template's OWN gate (not the one it stamps into a star).
+# The logic lives once in foundry/foundry-stocks (.forgejo/workflows/template-ci.yml);
+# this repo owns only `ci-matrix.toml`, which declares its variants. Same
+# thin-stub shape the stamped stars use. No `secrets: inherit` — the render gate
+# needs none.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  template-ci:
+    uses: foundry/foundry-stocks/.forgejo/workflows/template-ci.yml@main

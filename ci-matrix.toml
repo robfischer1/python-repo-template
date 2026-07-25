@@ -1,0 +1,53 @@
+# ci-matrix.toml — this template's render matrix. THE ONLY THING THIS REPO OWNS
+# ABOUT ITS OWN CI: the gate logic is generic and lives once, in
+# foundry-stocks/ci/lib/template_render_matrix.py, called through the
+# `template-ci.yml` reusable workflow. Variance is data; adding a variant is a
+# TOML edit, never a workflow edit.
+parse = ["**/*.toml", "**/*.json"]
+
+# The star/library split is the whole file-set variance here: `mcp = false`
+# drops the server, the container ignore-file and both container workflows. The
+# remaining answers (`sovereign_database`, `core_backed`) change CONTENT ONLY —
+# same file list, different pyproject.toml — which is exactly why they still get
+# cases: tier 2 parses what they render, so an unquoted or malformed branch in
+# the pyproject jinja is caught rather than shipped into the next star.
+
+[[case]]
+name = "mcp"
+answers = { project_name = "Gate Py", mcp = true }
+present = [
+  "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
+  "src/gate_py/settings.py",
+  "src/gate_py/health.py",
+  "pyproject.toml",
+  ".dockerignore",                 # containerised: build context matters
+  ".forgejo/workflows/build.yml",
+  ".forgejo/workflows/admit.yml",
+  ".forgejo/workflows/ci.yml",
+  "tests/test_smoke.py",
+]
+absent = ["src/gate_py/__main__.py"]
+
+[[case]]
+name = "library"
+answers = { project_name = "Gate Py", mcp = false }
+present = ["pyproject.toml", "src/gate_py/__init__.py", ".forgejo/workflows/ci.yml"]
+absent = [
+  # A plain library is not deployed, so nothing container-shaped may render. If
+  # any of these come back the `mcp` guards have regressed and every library
+  # stamp is born with a container pipeline it cannot satisfy.
+  "src/gate_py/server.py",
+  ".dockerignore",
+  ".forgejo/workflows/build.yml",
+  ".forgejo/workflows/admit.yml",
+]
+
+[[case]]
+name = "sovereign-db"
+answers = { project_name = "Gate Py", mcp = true, sovereign_database = true }
+present = ["pyproject.toml", "src/gate_py/server.py"]
+
+[[case]]
+name = "core-backed"
+answers = { project_name = "Gate Py", mcp = true, core_backed = true }
+present = ["pyproject.toml", "src/gate_py/server.py"]
