@@ -17,7 +17,8 @@ copier copy /path/to/python-repo-template my-new-service
 ```
 
 Copier asks a set of questions (see below), then runs `_tasks`: `git init`,
-wire the Forgejo/GitHub remotes, `uv sync`, generate `.secrets.baseline`,
+wire the remotes (`origin` = the Ourea door, `forgejo` fetch-only, `github` the
+push mirror — see [Remotes](#remotes)), `uv sync`, generate `.secrets.baseline`,
 install pre-commit hooks, run `specify init` (spec-kit scaffold), and finally
 `furnace ignite . --kit code-repo-sdd` to pour the governance layer. A failure
 in any task rolls back the whole stamp — there is no half-scaffolded repo.
@@ -99,19 +100,47 @@ template/                      # _subdirectory — everything below is rendered 
   tests/test_smoke.py.jinja
 ```
 
+## Remotes
+
+A stamped repo is born with three remotes, the post-F27 fleet convention:
+
+| Remote | URL | Role |
+|---|---|---|
+| `origin` | `https://git.notusmi.com/<service_name>.git` | The **Ourea door** — the authoritative git gateway. Serves real fetch/pull, and gates landings via `Serves`. Takes a **bare** repo name, no `rob/` prefix. |
+| `forgejo` | `https://forgejo.notusmi.com/rob/<service_name>.git` | **Fetch only.** Its push side is set to the `no_push_f27` sentinel so a stray `git push forgejo` fails loudly instead of bypassing the gate. |
+| `github` | `https://github.com/robfischer1/<service_name>.git` | Push mirror. |
+
+The remote repo must still be created on Forgejo first — push-to-create is
+disabled instance-wide. The `_tasks` only wire the local remotes.
+
 ## Development (of the template itself)
 
-There is no build/test/lint step for the template repo itself — it has no
-`pyproject.toml` of its own. To validate a change, render it:
+This repo has no `pyproject.toml` of its own, but it **is** gated. Every PR runs
+the render matrix declared in `ci-matrix.toml` through the canonical
+`template-ci.yml` in `foundry/foundry-stocks` — each answer combination is
+rendered, its expected file set asserted, and every rendered `.toml`/`.json`
+parsed. Adding a variant means adding a `[[case]]` there, not touching a
+workflow.
+
+To reproduce the gate locally:
 
 ```bash
-copier copy . /tmp/smoke-test --data project_name="Smoke Test" --defaults
-cd /tmp/smoke-test && uv sync --extra dev && uv run pytest
+python3 /path/to/foundry-stocks/ci/lib/template_render_matrix.py --template .
 ```
 
-Do this with both `mcp: true` and `mcp: false`, and with `core_backed` /
-`sovereign_database` toggled, before landing a template change — each answer
-combination renders a materially different tree (see `copier.yml`).
+It renders with `--trust --skip-tasks --vcs-ref=HEAD`, so no task runs (no
+`git init`, no `uv sync`, no `furnace ignite`) and it renders **your working
+commit** rather than the newest tag — copier resolves a git template to its
+latest tag by default, which would otherwise gate the last release instead of
+your change.
+
+For a full-fidelity check the matrix does not cover — that a stamp actually
+builds — render one for real and run its gate:
+
+```bash
+copier copy --trust . /tmp/smoke-test --data project_name="Smoke Test" --defaults
+cd /tmp/smoke-test && uv sync --extra dev && uv run pytest
+```
 
 ## Fleet role
 
