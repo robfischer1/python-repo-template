@@ -252,9 +252,9 @@ _tasks:
   # anneal/update, which re-pours governance a different way (not via this copy-task).
   # The kit rides `mcp` alone (Flame C6, decoupled from the retired
   # `decentralized`): an mcp star is tofu-managed from the foundry core, so
-  # furnace pours only the PR gates (code-repo-sdd-decentralized); a plain
+  # furnace pours only the PR gates (code-repo-sdd); a plain
   # library takes the base code-repo-sdd.
-  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd-decentralized' if mcp else 'code-repo-sdd' }}
+  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd' if mcp else 'code-repo-sdd' }}
     when: "{{ _copier_operation == 'copy' }}"
   # NOTE: a star no longer scaffolds `/infra` (Flame C4) — the tofu roots live in
   # rob/infra, which harvests the sovereign shape from the star's {star}.tfvars.
