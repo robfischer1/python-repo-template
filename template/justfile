@@ -1,0 +1,75 @@
+# justfile — Python star local gate.
+#
+# `check` is the fast edit loop. `gate` is the full mirror of
+# .forgejo/workflows/ci.yml — run it before you push and CI holds no surprises.
+# `just` with no argument lists everything.
+#
+# Poured verbatim by copier (no .jinja suffix): just's {{ }} interpolation and
+# Jinja's {{ }} are the same delimiters, so a .jinja suffix here would have Jinja
+# eat every recipe parameter at pour time.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+star := file_name(justfile_directory())
+
+# List available recipes
+default:
+    @just --list
+
+# Fast loop: lint, types, test. Run this constantly.
+#
+# Does NOT re-sync — `uv sync` on every invocation is the difference between a
+# sub-second loop and a multi-second one. Run `just sync` when the lock changes.
+check: lint types test
+
+# Everything ci.yml runs, from a clean locked environment. Run before pushing.
+gate: sync lint types test vuln sast
+
+# Resolve the environment from the lock, exactly as CI does.
+#
+# --locked FAILS rather than silently re-resolving, so a drifted uv.lock is an
+# error here instead of a surprise in CI. A bare `uv sync` also prunes dev deps
+# that are installed but undeclared.
+[doc('Resolve the environment from uv.lock, exactly as CI does')]
+sync:
+    uv sync --all-extras --locked
+
+# Format + lint via the repo's pre-commit hooks (ruff et al.)
+lint:
+    uv run pre-commit run --all-files --show-diff-on-failure
+
+# BOTH type checkers, matching CI — they disagree, and CI runs both
+types:
+    uv run mypy src tests
+    uv run pyright
+
+[doc('Run the test suite')]
+test *ARGS:
+    uv run pytest -q {{ARGS}}
+
+# Known-vulnerability scan. pip-audit is pulled ephemerally, not a project dep.
+vuln:
+    uv run --with pip-audit pip-audit
+
+# Static analysis, scoped taint rules
+sast:
+    LANG=C.UTF-8 LC_ALL=C.UTF-8 opengrep scan --config rules/sast --error .
+
+# Run the server from the working tree against the local environment.
+#
+# Python's fast path is running from source directly — there is no single-binary
+# overlay trick as there is for a Go or Rust star, because the container's
+# interpreter, site-packages and entrypoint all have to agree. Override MODULE
+# when the import package name differs from the repo name.
+[doc('Run the server from the working tree')]
+dev MODULE=replace(star, '-', '_') *ARGS:
+    uv run python -m {{MODULE}} {{ARGS}}
+
+# Build the container exactly as CI does — catches Dockerfile drift `check` cannot
+image:
+    DOCKER_BUILDKIT=1 docker build --pull -t {{star}}:dev .
+
+[doc('Remove caches and __pycache__ trees')]
+clean:
+    rm -rf .pytest_cache .mypy_cache .ruff_cache
+    find . -name __pycache__ -type d -prune -exec rm -rf {} +
