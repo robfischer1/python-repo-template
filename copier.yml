@@ -178,16 +178,16 @@ _tasks:
   # stamped/updated repo. Ungated: runs on BOTH copy and update.
   - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
   # Stamp SPDX/REUSE copyright headers on the star's OWN source that predates the
-  # ruff CPY001 requirement (template v0.16.2+). Idempotent (--skip-existing),
-  # comment-style-safe (--skip-unrecognised). UPDATE-only: a fresh strike renders
-  # already-stamped template files, so this migrates the pre-existing tree. `|| true`
-  # keeps a reuse/network hiccup from rolling back the whole reconcile — CI still
-  # gates CPY001, so a miss fails loud there, never silently half-stamped.
-  # Enumerate with `find`, NOT `git ls-files`: hephaestus runs the anneal's copier
-  # update under git_env() (GIT_DIR points at the workspace's own .git), so a
-  # `git ls-files` inside a task dies "fatal: not a git repository" and stamps
-  # nothing (v0.18.2 shipped that and was inert in the anneal). find is git-blind.
-  - command: uvx reuse annotate --copyright "Rob Fischer" --license Apache-2.0 --skip-existing --skip-unrecognised $(find . -name '*.py' -not -path '*/.venv/*' -not -path '*/.git/*') || true
+  # ruff CPY001 requirement (template v0.16.2+), so a reconcile lands green.
+  # Inline python, NOT `reuse`: the anneal runs copier under git_env() (which
+  # breaks a task's `git ls-files` -> "fatal: not a git repository") AND its uvx
+  # cache lacks reuse's charset-normalizer extra (reuse crashes NoEncodingModule)
+  # -- reuse was inert in the anneal on both v0.18.2 and v0.18.3. This stamp is
+  # git-blind + dependency-free: prepend the fixed header to every .py missing it
+  # (after a shebang; skipping .venv/.git/__pycache__), idempotent. UPDATE-only --
+  # a fresh strike renders already-stamped template files. chr(58)+chr(32) spell
+  # ": " so the command carries no colon-space that would break the YAML scalar.
+  - command: python -c "import pathlib; H='# SPDX-FileCopyrightText'+chr(58)+chr(32)+'2026 Rob Fischer'+chr(10)+'#'+chr(10)+'# SPDX-License-Identifier'+chr(58)+chr(32)+'Apache-2.0'+chr(10)+chr(10); [p.write_text(t[:(t.index(chr(10))+1 if t.startswith('#!') else 0)]+H+t[(t.index(chr(10))+1 if t.startswith('#!') else 0):], encoding='utf-8') for p in pathlib.Path('.').rglob('*.py') if not {'.venv','.git','__pycache__'} & set(p.parts) and 'SPDX-FileCopyrightText' not in (t:=p.read_text(encoding='utf-8'))]" || true
     when: "{{ _copier_operation == 'update' }}"
   # Ensure ruff's flake8-copyright notice-rgx ACCEPTS the SPDX form. The stanza
   # ships in pyproject.toml.jinja, but a star that skipped the v0.16.2 template
