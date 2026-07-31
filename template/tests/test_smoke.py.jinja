@@ -42,6 +42,7 @@ def test_oneiroi_hook() -> None:
     # Born-with Oneiroi memory hook is a safe no-op until the plane is live —
     # calling it must not raise (it is typed `-> None`, so asserting `is None`
     # is a mypy func-returns-value error; the no-raise call is the real check).
+    # forge-testkit: assert-exempt: no-op memory hook; the no-raise call is the check
     emit_memory("smoke", {"ok": True})
 {%- if mcp %}
 
