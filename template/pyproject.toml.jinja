@@ -45,6 +45,14 @@ dev = [
     "mypy>=1.10",
     "pyright==1.1.411",
     "pre-commit>=3.5",
+    # The three forge-testkit lints the pre-commit config runs. DECLARED HERE,
+    # not assumed: the hooks landed in v0.16.3 and this dep never did, so every
+    # scaffold since has shipped three hooks calling a package `uv run --extra
+    # dev` cannot resolve. Existing stars only work because the pin was added by
+    # hand, one repo at a time. >=0.3.1 is the floor for `schema-budget` (F13) —
+    # 0.3.0 budgeted the DOCSTRING, which under FastMCP is not what crosses the
+    # wire, so it flags the very pattern the fleet standardised on.
+    "forge-testkit>=0.3.1",
 ]
 {%- if mcp %}
 # Heartbeat publisher (the `kafka` extra): confluent-kafka backs the Producer
@@ -160,6 +168,11 @@ url = "https://forgejo.notusmi.com/api/packages/rob/pypi/simple/"
 
 [tool.uv.sources]
 stellar-core = { index = "forgejo" }
+# forge-testkit is published to the Forgejo PyPI only. Without this pin uv falls
+# through to the default index, where the name is unclaimed — the same class of
+# failure that resolved internal `pontus` to a public Flask/S3 package of the
+# same name. Index pins are per-project and are NOT inherited from a dependency.
+forge-testkit = { index = "forgejo" }
 {%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
