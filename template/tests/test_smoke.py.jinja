@@ -11,7 +11,7 @@ from {{ package_name }}.health import current_health
 from {{ package_name }}.observability import configure_telemetry
 from {{ package_name }}.oneiroi import emit_memory
 {%- if mcp %}
-from {{ package_name }}.server import mcp, ping
+from {{ package_name }}.server import mcp
 {%- endif %}
 from {{ package_name }}.settings import get_settings
 
@@ -45,10 +45,6 @@ def test_oneiroi_hook() -> None:
     # forge-testkit: assert-exempt: no-op memory hook; the no-raise call is the check
     emit_memory("smoke", {"ok": True})
 {%- if mcp %}
-
-
-def test_ping_tool() -> None:
-    assert ping()["status"] == "ok"
 
 
 def test_server_name() -> None:

@@ -37,10 +37,8 @@ mcp = FastMCP(
 )
 
 
-@mcp.tool()
-def ping() -> dict[str, str]:
-    """Liveness sample tool — returns ok. Replace with real tools."""
-    return {"status": "ok", "service": "{{ service_name }}"}
+# Register your @mcp.tool()-decorated functions here — the star's real surface.
+# (Liveness is served by the op-contract heartbeat + current_health(), not a tool.)
 
 
 def main() -> None:
