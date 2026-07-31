@@ -183,7 +183,11 @@ _tasks:
   # already-stamped template files, so this migrates the pre-existing tree. `|| true`
   # keeps a reuse/network hiccup from rolling back the whole reconcile — CI still
   # gates CPY001, so a miss fails loud there, never silently half-stamped.
-  - command: uvx reuse annotate --copyright "Rob Fischer" --license Apache-2.0 --skip-existing --skip-unrecognised $(git ls-files '*.py') || true
+  # Enumerate with `find`, NOT `git ls-files`: hephaestus runs the anneal's copier
+  # update under git_env() (GIT_DIR points at the workspace's own .git), so a
+  # `git ls-files` inside a task dies "fatal: not a git repository" and stamps
+  # nothing (v0.18.2 shipped that and was inert in the anneal). find is git-blind.
+  - command: uvx reuse annotate --copyright "Rob Fischer" --license Apache-2.0 --skip-existing --skip-unrecognised $(find . -name '*.py' -not -path '*/.venv/*' -not -path '*/.git/*') || true
     when: "{{ _copier_operation == 'update' }}"
   # Ensure ruff's flake8-copyright notice-rgx ACCEPTS the SPDX form. The stanza
   # ships in pyproject.toml.jinja, but a star that skipped the v0.16.2 template
