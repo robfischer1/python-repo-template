@@ -177,6 +177,21 @@ _tasks:
   # end-of-file-fixer pre-commit hook -> a red CI gate on the first PR of every
   # stamped/updated repo. Ungated: runs on BOTH copy and update.
   - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
+  # Stamp SPDX/REUSE copyright headers on the star's OWN source that predates the
+  # ruff CPY001 requirement (template v0.16.2+). Idempotent (--skip-existing),
+  # comment-style-safe (--skip-unrecognised). UPDATE-only: a fresh strike renders
+  # already-stamped template files, so this migrates the pre-existing tree. `|| true`
+  # keeps a reuse/network hiccup from rolling back the whole reconcile — CI still
+  # gates CPY001, so a miss fails loud there, never silently half-stamped.
+  - command: uvx reuse annotate --copyright "Rob Fischer" --license Apache-2.0 --skip-existing --skip-unrecognised $(git ls-files '*.py') || true
+    when: "{{ _copier_operation == 'update' }}"
+  # Ensure ruff's flake8-copyright notice-rgx ACCEPTS the SPDX form. The stanza
+  # ships in pyproject.toml.jinja, but a star that skipped the v0.16.2 template
+  # version never received it through the 3-way merge, so CPY001 rejects even a
+  # correctly-stamped header. Append it iff absent (idempotent; [0-9]{4} == the
+  # template's \d{4}, spelt without a backslash to survive YAML->shell->python).
+  - command: python -c "import pathlib; p=pathlib.Path('pyproject.toml'); t=p.read_text(encoding='utf-8'); s='[tool.ruff.lint.flake8-copyright]'; body=s+chr(10)+'notice-rgx = '+chr(39)+'(?i)SPDX-FileCopyrightText:.*[0-9]{4}'+chr(39)+chr(10); p.write_text(t if s in t else t.rstrip()+chr(10)+chr(10)+body, encoding='utf-8')"
+    when: "{{ _copier_operation == 'update' }}"
   # Flame C4 -- migrate a pre-recentralization star. Recentralization moved the
   # tofu ROOTS to rob/infra, so the star-local `infra/` tree + `compose.yaml` are
   # dead weight; the ONE thing the star still owns -- its sovereign spec -- is
