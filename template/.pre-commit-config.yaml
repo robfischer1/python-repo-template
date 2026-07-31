@@ -73,6 +73,23 @@ repos:
         language: system
         files: \.py$
         types: [python]
+      # F13 — the per-verb MCP schema budget. Every registered verb's wire
+      # description is a fleet-wide cost: it ships in the tool manifest on every
+      # session's first turn, whether or not the verb is ever called. The check
+      # has a FLOOR as well as a ceiling, because a ceiling alone rewards
+      # deleting the docstring — measured, that left the suite green while
+      # inverting the feature. Exemption (`[tool.forge_testkit_lint]
+      # schema_budget_exempt`) is permission to be long, never to be absent.
+      #
+      # Unconditional, not `{% if mcp %}`: this file is copied verbatim (copier's
+      # _templates_suffix leaves it unrendered), and on a non-MCP repo the check
+      # finds no registered verbs and passes. Nothing to gate.
+      - id: forge-testkit-schema-budget
+        name: MCP verb schema budget (forge-testkit)
+        entry: uv run --extra dev forge-testkit-lint schema-budget
+        language: system
+        files: ^src/.*\.py$
+        types: [python]
       - id: mypy
         name: mypy (CI parity — pre-push)
         entry: uv run mypy src tests
