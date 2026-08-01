@@ -149,6 +149,24 @@ reportUnknownVariableType = false
 reportUnknownParameterType = false
 reportMissingTypeStubs = false
 
+# The C3 FakeX-placement lint's one knob: where test doubles are SANCTIONED.
+# `check_fake_placement` permits Fake*/Stub* INSIDE this package and flags them
+# everywhere else, so it must name the narrowest place doubles legitimately
+# live — here, the test tree.
+#
+# Do NOT set this to "{{ package_name }}". That is the intuitive value and it
+# INVERTS the check: it sanctions doubles across all of src/ and rejects them
+# from tests/, silently, while reporting green. Measured 2026-08-01: 11 of the
+# 20 repos that had configured this knob by hand were set that way, their
+# doubles had migrated into production modules, and every one had zero Fakes
+# left in tests/. forge-testkit >=0.8.0 warns when it sees it.
+#
+# The other correct shape, if this star ever ships doubles for its OWN
+# consumers (the way chaos.client / pontus.client / themis.testing do), is a
+# dedicated sub-package: substrate_pkg = "{{ package_name }}.testing".
+[tool.forge_testkit_lint]
+substrate_pkg = "tests"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
