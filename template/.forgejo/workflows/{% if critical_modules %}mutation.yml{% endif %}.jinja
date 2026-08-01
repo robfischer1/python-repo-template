@@ -1,0 +1,39 @@
+# Caller stub (Test Hardening C1) — logic lives in foundry/foundry-stocks;
+# copier-shipped, stamped only when this star declared `critical_modules`.
+#
+# Coverage says a line RAN. Mutation says a line is TESTED: the gate breaks the
+# source on purpose and fails when the suite does not notice.
+#
+# Two triggers, two different jobs:
+#   pull_request  diff-scoped — mutates only the lines the PR added (1-3 min).
+#   schedule      the nightly full run over every site in critical-modules.
+#                 The reusable workflow forces full mode on a scheduled run;
+#                 a nightly that only re-mutated last night's diff would
+#                 measure nothing.
+#
+# fail-under is 0 (report-only) at birth ON PURPOSE. Read the honest score off
+# a few nightly runs first, then raise it here. A threshold nobody has measured
+# is a threshold everyone learns to skip.
+name: mutation
+
+on:
+  pull_request:
+    paths-ignore:
+      - ".forgejo/**"
+      - "**.md"
+  schedule:
+    # Off-peak, off the hour — the mutation job is the most CPU-hungry in the
+    # fleet (one full suite run PER MUTANT), so it must not collide with the
+    # nightly base-rescan / deploy sweeps.
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    uses: foundry/foundry-stocks/.forgejo/workflows/mutation.yml@main
+    with:
+      critical-modules: "{{ critical_modules }}"
+      fail-under: 0
+    # pragma comment: detect-secrets flags the word 'secrets' as a Secret Keyword,
+    # and `secrets: inherit` is the reusable-workflow idiom, not a credential.
+    secrets: inherit  # pragma: allowlist secret

@@ -51,3 +51,20 @@ present = ["pyproject.toml", "src/gate_py/server.py"]
 name = "core-backed"
 answers = { project_name = "Gate Py", mcp = true, core_backed = true }
 present = ["pyproject.toml", "src/gate_py/server.py"]
+
+# The mutation gate (Test Hardening C1) is DECLARATION-TRIGGERED: naming a
+# critical module is what stamps the stub. Both directions get a case, because
+# the failure modes are opposite and both are silent. A stub that renders
+# unconditionally gives every star an unscoped gate — hours long, or a scope
+# matching nothing and reporting a vacuous pass. A stub that never renders
+# makes the whole C1 track a no-op nobody notices.
+[[case]]
+name = "no-mutation-gate-by-default"
+answers = { project_name = "Gate Py", mcp = true }
+present = [".forgejo/workflows/ci.yml"]
+absent = [".forgejo/workflows/mutation.yml"]
+
+[[case]]
+name = "mutation-gate-when-declared"
+answers = { project_name = "Gate Py", mcp = true, critical_modules = "src/gate_py/policy.py" }
+present = [".forgejo/workflows/ci.yml", ".forgejo/workflows/mutation.yml"]

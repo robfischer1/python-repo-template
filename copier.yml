@@ -117,6 +117,22 @@ verb_prefix:
   default: ""
   when: "{{ mcp }}"
 
+# --- Mutation gate (Test Hardening C1) -----------------------------------------
+# Space-separated source paths whose tests must BITE, not merely run. Blank (the
+# default) stamps no mutation.yml at all — deliberately. A mutation gate over a
+# module nobody named is either an hours-long full-tree run or a scope that
+# matches nothing and reports a vacuous pass; neither is worth having. Declaring
+# the module is the act that makes the gate meaningful, so the declaration is
+# the trigger.
+#
+# The stamped stub runs REPORT-ONLY (fail-under defaults to 0). Measure first,
+# then raise the threshold in the stub once the honest score is known — binding
+# a number nobody has measured just teaches everyone to skip the check.
+critical_modules:
+  type: str
+  help: "Modules whose tests must bite, space-separated (e.g. 'src/pkg/policy.py'). Blank = no mutation gate."
+  default: ""
+
 # --- Deploy shape --------------------------------------------------------------
 # The `decentralized` question is RETIRED (Flame C4/C6, decoupled): it conflated
 # two things recentralization split apart -- a star no longer owns its `/infra`
