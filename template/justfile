@@ -69,6 +69,35 @@ dev MODULE=replace(star, '-', '_') *ARGS:
 image:
     DOCKER_BUILDKIT=1 docker build --pull -t {{star}}:dev .
 
+# Regenerate CHANGELOG.md from the commit log.
+#
+# The file is DERIVED — never hand-edit it. git-cliff buckets by git tag, so an
+# untagged repo renders one [Unreleased] section; `just release` seeds the tag.
+# Pulled ephemerally like pip-audit, and PINNED: an unpinned generator rewrites
+# the whole file the day it changes its default template.
+[doc('Regenerate CHANGELOG.md from the commit log')]
+changelog:
+    uvx git-cliff@2.13.1 --config cliff.toml -o CHANGELOG.md
+
+# Compute the next semver from the commit types, tag it, and regenerate.
+#
+# feat -> MINOR, fix -> PATCH, `!` or BREAKING CHANGE -> MAJOR. Prints the tag
+# without creating it unless you pass EXECUTE=1, because a pushed tag is not
+# something to discover you did by accident.
+[doc('Compute + apply the next semver tag, then regenerate the changelog')]
+release EXECUTE="0":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    next="$(uvx git-cliff@2.13.1 --config cliff.toml --bumped-version)"
+    echo "next version: ${next}"
+    if [[ "{{EXECUTE}}" != "1" ]]; then
+        echo "dry run — re-run with EXECUTE=1 to tag"
+        exit 0
+    fi
+    uvx git-cliff@2.13.1 --config cliff.toml --bump -o CHANGELOG.md
+    git tag -a "${next}" -m "${next}"
+    echo "tagged ${next} — push it with: git push origin ${next}"
+
 [doc('Remove caches and __pycache__ trees')]
 clean:
     rm -rf .pytest_cache .mypy_cache .ruff_cache
