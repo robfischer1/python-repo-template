@@ -82,3 +82,12 @@ commit_parsers = [
 # would split the fleet's tag convention on the day the untagged stars are
 # seeded. Measured: athena (0 tags) -> 0.1.0 without it, v0.1.0 with it.
 initial_tag = "v0.1.0"
+
+# While below 1.0, a breaking change bumps MINOR — not MAJOR. git-cliff's
+# default is strict semver, which sends 0.x + `feat!` straight to 1.0.0:
+# measured 0.3.1 + feat! -> 1.0.0, and chaos already carries `feat!` commits
+# at 0.16.x. Promoting a star to 1.0.0 declares its API stable, and that is
+# not a statement a generator should make on nobody's behalf. SemVer S4:
+# "Major version zero is for initial development. Anything MAY change at any
+# time." With this off: 0.3.1 + feat! -> 0.4.0.
+breaking_always_bump_major = false
