@@ -7,7 +7,20 @@ name: build
 
 enable-openid-connect: true
 
+# workflow_dispatch: the ONLY way to rebuild a commit that already landed.
+# A build can go green and still not deploy — if the pin-bump hits a MINTER
+# FAULT reading the source commit message from the Forgejo API, it mints a
+# deploy PR with no Serves trailer, which cannot advance infra's main, so the
+# star silently keeps serving its old image. Without a manual trigger there is
+# no way back: the change is already on main, so push: will never fire for it
+# again, leaving only a junk commit or a hand-forged pin PR.
+#
+# Measured on arachne 2026-08-03 (arachne#1439): green build, 2-day-old
+# container, a CVE fix on main that never reached the running image. Only
+# chaos and nereus carried this stanza at the time; the other 16 stars and
+# this template did not, so no star could recover a stranded deploy.
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths-ignore:
