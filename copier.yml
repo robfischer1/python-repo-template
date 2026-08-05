@@ -189,9 +189,12 @@ interstellar:
 # lock. copy leaves a ready git repo with a synced env + installed hooks.
 _tasks:
   # Normalize the copier-generated answers file to end with exactly one newline.
-  # copier emits `.copier-answers.yml` without a trailing newline, which fails the
-  # end-of-file-fixer pre-commit hook -> a red CI gate on the first PR of every
-  # stamped/updated repo. Ungated: runs on BOTH copy and update.
+  # Belt-and-braces behind the `|trim` in the answers-file jinja: the raw render
+  # used to end with TWO newlines (to_nice_yaml's own + the template's final one),
+  # which fails the end-of-file-fixer pre-commit hook -> a red CI gate on the
+  # first PR of every stamped repo. The jinja now renders exactly one; this task
+  # keeps a task-skipping/untrusted render from ever regressing a trusted one.
+  # Ungated: runs on BOTH copy and update.
   - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
   # Stamp SPDX/REUSE copyright headers on the star's OWN source that predates the
   # ruff CPY001 requirement (template v0.16.2+), so a reconcile lands green.
