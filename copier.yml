@@ -258,7 +258,13 @@ _tasks:
   # pyproject (e.g. a new optional-dependency) otherwise leaves a star with a
   # stale uv.lock that the admission gate's `uv sync --locked` rejects. No `when:`
   # -> runs on update too; `uv lock` is idempotent (no-op when already current).
-  - command: uv lock
+  # GUARDED on uv's presence: renovate's copier artifact step runs tasks in a
+  # container with no uv on PATH, and an exit-127 here made renovate DISCARD the
+  # whole rendered update and ship its sentinel edit instead (urania #165,
+  # measured 2026-08-05 -- the only update-lane task without a guard). Absent uv
+  # degrades to a loud skip: a stale lock reds the PR gate visibly, which beats
+  # an update that never lands at all.
+  - command: command -v uv >/dev/null 2>&1 && uv lock || echo "uv absent -- lock refresh skipped (the PR gate will catch a stale lock)"
   - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
