@@ -69,6 +69,17 @@ core_backed:
   type: bool
   help: "Builds FROM mnemosyne-core-base (baked core + schema). For constellation stars."
   default: false
+
+# The born-with oneiroi.py emission stub ships to every star by default. A star
+# that OUTGROWS the stub into its own oneiroi package (mnemosyne — the dream
+# engine lives at src/<pkg>/oneiroi/) must set this false: the regenerated stub
+# module shadow-collides with the package on the same import name, and every
+# template update re-asserts it (measured 2026-08-06 — the v0.19.0 branch
+# re-added the stub beside mnemosyne's package).
+oneiroi_stub:
+  type: bool
+  help: "Ship the born-with oneiroi.py emission stub. False ONLY for a star owning its own oneiroi package."
+  default: true
   when: "{{ mcp }}"
 
 core_base_tag:
