@@ -32,7 +32,28 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-      - id: end-of-file-fixer
+      # end-of-file-fixer REMOVED 2026-08-08 — it earned nothing and cost an outage.
+      #
+      # MEASURED across 40 repos / 8276 in-scope text files, applying each repo's `exclude`
+      # and the hook's own `types: [text]`: 62 files would change (0.75%), and NOT ONE is a
+      # source file in any language. ruff-format / rustfmt / gofmt / prettier already
+      # guarantee a final newline on anything a human writes, and .editorconfig has carried
+      # `insert_final_newline = true` the whole time. The 62 are generated trees (Tauri
+      # gen/android, spec-kit .specify/, public/ assets), SVG/XML icons, and one GOLDEN test
+      # fixture ending \n\n on purpose — files where the "fix" is wrong, futile, or both.
+      #
+      # The cost is not hypothetical. Its only real catches are machine-generated files, and
+      # on 2026-08-08 that meant a 24-repo red-CI cascade over renovate's unterminated
+      # `#copier updated` sentinel — charged to PRs that never touched the file, because
+      # .copier-answers.yml is inert to the gate (rob/renovate-config#2558). It also cannot
+      # run in a forge-git-locked primary at all: it opens every file `rb+` before knowing
+      # whether it has a change to make, so a-w tracked files raise PermissionError
+      # (rob/foundry-stocks#2563).
+      #
+      # WHAT THIS GIVES UP: it was the canary that surfaced that sentinel jam, so a future
+      # generator bug of the same shape now lands quietly. Accepted — it signalled by
+      # breaking everyone else's CI and naming the wrong PR, and the jam's real symptom (a
+      # frozen copier manager) is now watched at the source fix instead.
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
