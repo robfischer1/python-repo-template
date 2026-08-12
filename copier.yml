@@ -31,6 +31,36 @@ _skip_if_exists:
   - SECURITY.md
   - src/**
   - tests/**
+  # THE SEAM NARROWED, NOT CLOSED — and pyproject.toml is deliberately ABSENT
+  # from this list, alone among the five templates.
+  #
+  # The other four closed their manifest seam outright: go.mod and Cargo.toml had
+  # been touched by their template exactly ONCE each (the commit that created
+  # them), and package.json 10 times with a thin claim, so skipping cost nothing.
+  # MEASURED HERE, the answer inverts: template/pyproject.toml.jinja has 23
+  # commits, `[project]` changed in 17 of them and `[tool.*]` in 16 — uv 8,
+  # mypy 4, ruff 2, pytest / coverage / hatch / pyright / forge_testkit_lint 1
+  # each. This template delivers real, ongoing conformance through that file, and
+  # `[tool.hatch]` and most of `[tool.uv]` CANNOT live anywhere else — they are
+  # build-backend and resolver config that pyproject.toml owns by definition.
+  #
+  # So skipping it would withhold sixteen tool-config deliveries' worth of
+  # conformance to prevent a clobber, which is trading one silent failure for
+  # another. pyproject stays a merge seam, and is protected by DETECTION instead:
+  # foundry-stocks' manifest guard refuses a copier-update PR that regresses a
+  # star-owned field. Uniform closure would have been wrong for exactly one of
+  # the five templates, and this is it.
+  #
+  # Everything else that was still merged joins the list. .gitignore because a
+  # consumer customises it — a frontend star was measured about to lose nine local
+  # lines, among them a `!tools/parity/fixtures/**` negation whose own comment
+  # records it fixing a CI outage. cliff.toml and justfile because they are
+  # template-owned conformance like their neighbours here. LICENSES/** because a
+  # licence text is star-owned once born, like LICENSE above it.
+  - .gitignore
+  - cliff.toml
+  - justfile
+  - LICENSES/**
   # foundry conformance: skipped here, clobbered by anneal (C2)
   - .editorconfig
   - .python-version
