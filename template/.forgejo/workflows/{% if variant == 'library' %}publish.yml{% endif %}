@@ -1,0 +1,33 @@
+# Caller stub — the wheel publish lane. Logic lives in
+# foundry-stocks/.forgejo/workflows/publish-pypi.yml (Standalone F1); this file
+# carries only what is repo-local: which subtree means "the package changed".
+#
+# ── RELEASE PROCEDURE ─────────────────────────────────────────────────────────
+#   1. Bump `version` in pyproject.toml.
+#   2. Commit + land to main. The change fires this workflow.
+#   3. `uv build` + `uv publish` land the new version. No tag, no manual upload.
+#   • A merge WITHOUT a version bump is a SAFE NO-OP: `uv publish --check-url`
+#     sees the version already on the index and skips it, so you never have to
+#     gate merges on a bump.
+#   • workflow_dispatch is the manual re-run after a transient registry blip.
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+# One publish at a time; never abort an upload in flight.
+concurrency:
+  group: publish-{{ service_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    uses: foundry/foundry-stocks/.forgejo/workflows/publish-pypi.yml@main
+    with:
+      package_dir: {{ package_dir }}
+    secrets: inherit  # pragma: allowlist secret

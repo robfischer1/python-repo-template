@@ -13,8 +13,8 @@ parse = ["**/*.toml", "**/*.json"]
 # the pyproject jinja is caught rather than shipped into the next star.
 
 [[case]]
-name = "mcp"
-answers = { project_name = "Gate Py", mcp = true }
+name = "star"
+answers = { project_name = "Gate Py", variant = "star", mcp = true }
 present = [
   "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
   "src/gate_py/settings.py",
@@ -26,20 +26,25 @@ present = [
   ".forgejo/workflows/ci.yml",
   "tests/test_smoke.py",
 ]
-absent = ["src/gate_py/__main__.py"]
+absent = [
+  ".forgejo/workflows/publish.yml","src/gate_py/__main__.py"]
 
 [[case]]
+# The two non-star shapes cross: `library` pins the publish stub PRESENT and
+# cast ABSENT; `binary` pins the reverse. A fat-fingered conditional reds a
+# neighbour's case rather than shipping the wrong lane quietly.
 name = "library"
-answers = { project_name = "Gate Py", mcp = false }
-present = ["pyproject.toml", "src/gate_py/__init__.py", ".forgejo/workflows/ci.yml"]
+answers = { project_name = "Gate Py", variant = "library", mcp = false }
+present = ["pyproject.toml", "src/gate_py/__init__.py", ".forgejo/workflows/publish.yml", ".forgejo/workflows/ci.yml"]
 absent = [
   # A plain library is not deployed, so nothing container-shaped may render. If
   # any of these come back the `mcp` guards have regressed and every library
   # stamp is born with a container pipeline it cannot satisfy.
   "src/gate_py/server.py",
   ".dockerignore",
-  ".forgejo/workflows/build.yml",
   ".forgejo/workflows/admit.yml",
+  ".forgejo/workflows/build.yml",
+  ".forgejo/workflows/cast.yml",
 ]
 
 [[case]]

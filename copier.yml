@@ -90,9 +90,38 @@ description:
   help: One-line project description
   default: A standard Forge Python project.
 
+# WHAT THIS REPO SHIPS (Standalone F4). The container lane — .dockerignore,
+# admit, build — hangs off THIS, not off `mcp`. It used to hang off `mcp`, which
+# asks a different question and only gave the right answer by luck; this file's
+# own help said "Off = plain library/CLI", a distribution shape smuggled through
+# a protocol flag.
+#
+#   star    — ships a container. Everything as before.
+#   library — publishes a wheel to the Forgejo PyPI (the publish stub).
+#   binary  — ships a release binary through the cast plane.
+#
+# Default `star` and it is load-bearing here above all: TWENTY-ONE repos are
+# stamped from this template and every one of them answers `mcp: true`. Any
+# other default turns adding a question into a fleet migration.
+variant:
+  type: str
+  help: "What does this repo ship?"
+  choices:
+    a container (a star): star
+    a published wheel: library
+    a release binary (CLI): binary
+  default: star
+
+# Where the package lives, for the publish lane. "." for a single-package repo.
+package_dir:
+  type: str
+  help: "Directory holding the package's pyproject.toml (\".\" for the repo root)."
+  default: "."
+  when: "{{ variant == 'library' }}"
+
 mcp:
   type: bool
-  help: "FastMCP service shape (server.py, mcp[cli], container, deploy). Off = plain library/CLI."
+  help: "FastMCP service shape (server.py, mcp[cli])."
   default: true
 
 core_backed:
@@ -150,7 +179,7 @@ port:
   type: int
   help: Default streamable-HTTP listen port
   default: 8000
-  when: "{{ mcp }}"
+  when: "{{ variant == 'star' and mcp }}"
 
 verb_prefix:
   type: str
