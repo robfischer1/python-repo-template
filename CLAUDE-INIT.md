@@ -126,7 +126,8 @@ Inside `template/`:
   `cosign.pub` when `core_backed: true`.
 - **`{{_copier_conf.answers_file}}.jinja`** → renders to
   `.copier-answers.yml`, copier's own bookkeeping file (records template +
-  answers for `copier update`'s 3-way merge).
+  answers for `copier update`; the only file it still 3-way merges is
+  `pyproject.toml`).
 - Community publish-set: `README.md.jinja`, `CONTRIBUTING.md.jinja`,
   `CHANGELOG.md.jinja`, `LICENSE.jinja` (Apache-2.0), `CODE_OF_CONDUCT.md`,
   `SECURITY.md` (last two are NOT `.jinja` — copied verbatim, no
@@ -139,7 +140,9 @@ template), invoked entirely through the `copier` CLI:
 
 - `copier copy <this-repo> <dest>` — scaffold a new repo (see README "Use").
 - `copier update` (run *inside* a previously-generated repo) — pull template
-  changes via 3-way merge.
+  changes. Every rendered path is `_skip_if_exists` EXCEPT `pyproject.toml`
+  (the one merge seam) and `.copier-answers.yml` (copier's own). So an update
+  ADDS files a star has never had and rewrites nothing else.
 
 Inside a *rendered* repo, the entry points are:
 - `mcp: true` → console script `{service_name} = "{package_name}.server:main"`

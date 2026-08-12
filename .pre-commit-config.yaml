@@ -1,0 +1,57 @@
+# Pre-commit for THE TEMPLATE ITSELF — not the config it stamps into stars.
+# Until 2026-08-12 every *-repo-template gated its CHILDREN and carried nothing of
+# its own, so nothing checked copier.yml for valid YAML, ci-matrix.toml for valid
+# TOML, or this repo for a committed conflict marker. In frontend-repo-template
+# that gap let an inlined shell command whose echo text contained ": " break
+# copier.yml as YAML, caught only because the render matrix parses it in passing.
+#
+# WHY template/ IS EXCLUDED. Everything under template/ is jinja SOURCE, not the
+# rendered result: pyproject.toml.jinja is not valid TOML, `{% if x %}name{% endif %}`
+# is not a filename, and check-yaml reads a `{{ }}` scalar as an alias. Parsing
+# the RENDERED tree — with answers substituted — is the render matrix's job, and
+# it does that properly. This gate checks the SOURCE repo.
+#
+# No end-of-file-fixer: removed fleet-wide 2026-08-08 after a 24-repo red-CI
+# cascade, and it cannot run in a forge-git-locked primary at all.
+default_install_hook_types: [pre-commit, pre-push]
+exclude: '^(template/|\.claude/|\.specify/|\.furnace/)'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      # copier.yml is the file that actually broke.
+      - id: check-yaml
+      # ci-matrix.toml declares the render cases and the [update] contract.
+      - id: check-toml
+
+  - repo: local
+    hooks:
+      # THE REAL GATE, at pre-push: the same matrices CI runs, so a push that
+      # would red template-ci fails locally first. They live in foundry-stocks so
+      # all five templates share one definition; absent, they NOTICE rather than
+      # block, the way this fleet already treats a missing opengrep.
+      - id: render-matrix
+        name: copier render matrix (every case renders; crossings hold)
+        entry: >-
+          bash -c 'S=${FOUNDRY_STOCKS:-../foundry-stocks};
+          [ -f "$S/ci/lib/template_render_matrix.py" ] ||
+          { echo "foundry-stocks not at $S — skipping locally (CI enforces)"; exit 0; };
+          python3 "$S/ci/lib/template_render_matrix.py" --template .'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+      - id: update-matrix
+        name: copier update matrix (a bump may not eat what a star owns)
+        entry: >-
+          bash -c 'S=${FOUNDRY_STOCKS:-../foundry-stocks};
+          [ -f "$S/ci/lib/template_update_matrix.py" ] ||
+          { echo "foundry-stocks not at $S — skipping locally (CI enforces)"; exit 0; };
+          python3 "$S/ci/lib/template_update_matrix.py" --template .'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true

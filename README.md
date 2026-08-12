@@ -27,7 +27,7 @@ in any task rolls back the whole stamp — there is no half-scaffolded repo.
 
 ```bash
 cd my-new-service
-copier update      # 3-way merges template changes, preserving local edits
+copier update      # adds new template files; only pyproject.toml is merged
 ```
 
 `uv lock` re-runs on every `update` (not just `copy`) so a template change to
@@ -115,18 +115,52 @@ disabled instance-wide. The `_tasks` only wire the local remotes.
 
 ## Development (of the template itself)
 
-This repo has no `pyproject.toml` of its own, but it **is** gated. Every PR runs
-the render matrix declared in `ci-matrix.toml` through the canonical
-`template-ci.yml` in `foundry/foundry-stocks` — each answer combination is
-rendered, its expected file set asserted, and every rendered `.toml`/`.json`
-parsed. Adding a variant means adding a `[[case]]` there, not touching a
-workflow.
+This repo has no `pyproject.toml` of its own, but it **is** gated — and as of
+2026-08-12 it gates *itself*, where before it gated only its children. Install
+the hooks first:
 
-To reproduce the gate locally:
+```bash
+uvx pre-commit install
+```
+
+`pre-commit` checks the SOURCE repo (`copier.yml` as YAML, `ci-matrix.toml` as
+TOML, no committed conflict markers). `pre-push` runs both matrices CI runs.
+`template/` is excluded from the parsers on purpose: it is jinja source, and
+`pyproject.toml.jinja` is not valid TOML. Parsing the RENDERED tree is the render
+matrix's job, with answers substituted.
+
+Every PR runs the render matrix declared in `ci-matrix.toml` through the
+canonical `template-ci.yml` in `foundry/foundry-stocks` — each answer combination
+is rendered, its expected file set asserted, and every rendered `.toml`/`.json`
+parsed. Adding a variant means adding a `[[case]]` there, not touching a
+workflow. A second matrix now runs beside it, gating the `copier update` path the
+render matrix cannot see.
 
 ```bash
 python3 /path/to/foundry-stocks/ci/lib/template_render_matrix.py --template .
+python3 /path/to/foundry-stocks/ci/lib/template_update_matrix.py --template .
 ```
+
+### pyproject.toml is the one file still merged, on purpose
+
+The other four templates closed their manifest seam outright. This one keeps it,
+and the reason is measured: `template/pyproject.toml.jinja` has **23 commits**,
+`[project]` changed in 17 and `[tool.*]` in 16 (uv 8, mypy 4, ruff 2, and one
+each for pytest / coverage / hatch / pyright / forge_testkit_lint). By contrast
+`go.mod` and `Cargo.toml` had been touched **once each** — the commit that
+created them — so skipping them cost nothing.
+
+`[tool.hatch]` and most of `[tool.uv]` cannot live anywhere else; they are
+build-backend and resolver config pyproject owns by definition. Skipping the file
+would withhold sixteen deliveries' worth of conformance to prevent a clobber,
+which trades one silent failure for another.
+
+So it stays merged and is protected by **detection**: foundry-stocks' manifest
+guard refuses a `copier update` PR that regresses a star-owned field —
+`project.dependencies`, `project.optional-dependencies`, `dependency-groups`, a
+version literal. Everything else here is `_skip_if_exists`, so a change to it
+reaches only NEW stamps unless it ships with a versioned `_migrations` entry at
+the `after` stage.
 
 It renders with `--trust --skip-tasks --vcs-ref=HEAD`, so no task runs (no
 `git init`, no `uv sync`, no `furnace ignite`) and it renders **your working
