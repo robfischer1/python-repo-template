@@ -82,7 +82,7 @@ changelog:
 # Compute the next semver, write it into the version literal, and regenerate.
 #
 # feat -> MINOR, fix -> PATCH, `!` or BREAKING CHANGE -> MAJOR (MINOR below 1.0).
-# Prints what it would do unless you pass EXECUTE=1.
+# Prints what it would do unless you pass 1.
 #
 # THIS DOES NOT TAG, and that is the fix. The version LITERAL is authority: the
 # wheel on the index is built from it, and the ourea door mints refs/tags/vX.Y.Z
