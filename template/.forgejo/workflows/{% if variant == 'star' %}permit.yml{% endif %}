@@ -1,0 +1,28 @@
+# Caller stub (Flame pull-CI) — logic lives in foundry/foundry-stocks; invariant.
+#
+# STAGE 3 OF THE PERMIT CHAIN: CI/lint -> build -> PERMIT -> admit -> deploy.
+#
+# build publishes an image at immutable coordinates (the sha tag + the record's
+# content-etag tag), signed. permit then asks hephaestus — through hades, over
+# SPIFFE mTLS — to VERIFY that build and stamp it: that WE built it (the build
+# lane's signature over the digest), and that we built it RIGHT (revision ==
+# the door's HEAD, source == this repo, no contract drift). Nothing here builds.
+#
+# push:main ONLY, NEVER pull_request, AND THAT IS A SECURITY PROPERTY.
+# permit's stamp carries the FLEET key, which is what every furnace subscription
+# treats as "this is ours" — so a PR-time permit would make UNMERGED code
+# fleet-trusted, and anyone who can open a pull request could mint an artifact
+# the whole fleet admits. The trigger IS the guard. It also could not work:
+# permit checks revision == the door's main HEAD, and a PR head is not that.
+#
+# No workflow_dispatch hand-crank, deliberately, for the same reason: a manual
+# fire from an arbitrary ref is the PR hazard wearing a different hat. Re-run the
+# workflow from its own run page if a permit needs retrying.
+name: permit
+on:
+  push:
+    branches: [main]
+jobs:
+  permit:
+    uses: foundry/foundry-stocks/.forgejo/workflows/permit.yml@main
+    secrets: inherit  # pragma: allowlist secret
