@@ -13,8 +13,8 @@
 # furnace owns .claude/ .specify/ .furnace/ (deployed by `furnace stoke`/`quench`).
 # Exclude that managed surface from every hook: hygiene fixers would mangle the
 # deployed content into drift, and detect-secrets trips on the manifest's hashes.
-default_install_hook_types: [pre-commit, pre-push]
-exclude: '^\.(claude|specify|furnace)/|\.melt$'
+default_install_hook_types: [pre-commit, pre-push, post-commit]
+exclude: '^(\.(claude|specify|furnace)/|vendor/)|\.melt$'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.0
@@ -31,7 +31,12 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: trailing-whitespace
+      # trailing-whitespace REMOVED 2026-08-16, on the same evidence that retired
+      # end-of-file-fixer above. MEASURED across 6 repos / 998 tracked source files
+      # (py, go, rs, ts, tsx, md, yml, toml; vendor excluded): 7 files carry trailing
+      # whitespace — 0.7%, the same near-zero yield, and a fixer that rewrites a file
+      # under a running commit for it. A hook that earns nothing does not get kept
+      # because it is cheap; it gets deleted.
       # end-of-file-fixer REMOVED 2026-08-08 — it earned nothing and cost an outage.
       #
       # MEASURED across 40 repos / 8276 in-scope text files, applying each repo's `exclude`
@@ -171,3 +176,20 @@ repos:
         stages: [pre-commit]
         pass_filenames: false
         always_run: true
+      # A branch cut off a stale local main is a rebase nobody asked for. The
+      # background fetch after every commit keeps origin/* fresh so the next
+      # branch starts from what the door actually holds. Backgrounded and
+      # detached: a slow network delays no commit, and a failed fetch is a
+      # no-op rather than a broken post-commit.
+      #
+      # Absent from THIS template alone until now — go, rust and frontend have
+      # carried it since their creation, python never received it. The eight
+      # python repos that have it got it from the retired furnace scaffold
+      # pour, not from here.
+      - id: fetch-origin
+        name: fetch origin (keep refs fresh)
+        entry: bash -c '(git fetch origin --prune --quiet >/dev/null 2>&1 </dev/null &)'
+        language: system
+        stages: [post-commit]
+        always_run: true
+        pass_filenames: false
