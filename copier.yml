@@ -65,7 +65,15 @@ _skip_if_exists:
   - .editorconfig
   - .python-version
   - .dockerignore
-  - .pre-commit-config.yaml
+  # .pre-commit-config.yaml is NOT here: copier OWNS it, create AND update.
+  # It sat in this list from 2026-07-23 (Flame C1, "copier owns create-if-absent
+  # + the seams") until 2026-08-16, and in that window nothing owned the file at
+  # all — copier skipped it, furnace stopped pouring the scaffold surface, and
+  # hephaestus's `anneal` (the last thing that rewrote one) was removed in the
+  # rewrite. MEASURED 2026-08-16: of 18 in-sync python repos, ZERO were
+  # byte-identical to this template; the fleet had drifted 45-176 lines apiece
+  # with no mechanism able to see it, and 8 repos still carried a commit-msg
+  # hook retired from here on 2026-08-04.
   - .forgejo/**
   - .github/**
   - rules/**
