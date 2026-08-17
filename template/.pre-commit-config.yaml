@@ -173,7 +173,9 @@ repos:
       - id: worktree-guard
         name: commit from a linked worktree, not the shared checkout
         entry: >-
-          bash -c 'S=${FOUNDRY_STOCKS:-../foundry-stocks};
+          bash -c 'S="${FOUNDRY_STOCKS:-}";
+          [ -n "$S" ] || { G=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null);
+          S="${G%/.git}/../foundry-stocks"; };
           [ -f "$S/ci/lib/verified_worktree.py" ] || {
           echo "worktree-guard: CANNOT RUN - no foundry-stocks at $S" >&2;
           echo "worktree-guard: set FOUNDRY_STOCKS to your checkout. Refusing to report success without checking." >&2;
@@ -227,7 +229,9 @@ repos:
       - id: stop-justifications
         name: "no silent suppression of any gate - excuse with a tool-conflict line"
         entry: >-
-          bash -c 'S=${FOUNDRY_STOCKS:-../foundry-stocks};
+          bash -c 'S="${FOUNDRY_STOCKS:-}";
+          [ -n "$S" ] || { G=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null);
+          S="${G%/.git}/../foundry-stocks"; };
           [ -f "$S/ci/lib/stop_justifications.py" ] || {
           echo "stop-justifications: CANNOT RUN - no foundry-stocks at $S" >&2;
           echo "stop-justifications: set FOUNDRY_STOCKS to your checkout. Refusing to report success without scanning." >&2;
