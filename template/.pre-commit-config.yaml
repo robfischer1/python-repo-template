@@ -14,7 +14,7 @@
 # Exclude that managed surface from every hook: hygiene fixers would mangle the
 # deployed content into drift, and detect-secrets trips on the manifest's hashes.
 default_install_hook_types: [pre-commit, pre-push, post-commit]
-exclude: '^(\.(claude|specify|furnace)/|vendor/)|\.melt$'
+exclude: '^\.(claude|specify|furnace)/|(^|/)(vendor|node_modules)/|\.melt$'
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.0
