@@ -164,13 +164,20 @@ repos:
       # check — the discriminator (--git-dir vs --git-common-dir) is easy to get
       # subtly wrong, and it must scrub git's repo-location env or an inherited
       # GIT_DIR makes every directory answer "worktree", the shared checkout
-      # included. Exempt under CI; bypass with FORGE_ALLOW_SHARED_CHECKOUT=1.
+      # included. Exempt under CI (the script returns 0 when $CI is set — a plain
+      # clone has no worktree to be wrong about); bypass with
+      # FORGE_ALLOW_SHARED_CHECKOUT=1. A MISSING foundry-stocks is NOT a bypass:
+      # it exits 2, 'could not run', never 0. It used to exit 0, and because
+      # pre-commit hides a passing hook's output that skip was invisible — every
+      # green 'commit from a linked worktree' may have been a skip, not a pass.
       - id: worktree-guard
         name: commit from a linked worktree, not the shared checkout
         entry: >-
           bash -c 'S=${FOUNDRY_STOCKS:-../foundry-stocks};
-          [ -f "$S/ci/lib/verified_worktree.py" ] ||
-          { echo "foundry-stocks not at $S — worktree guard not installed"; exit 0; };
+          [ -f "$S/ci/lib/verified_worktree.py" ] || {
+          echo "worktree-guard: CANNOT RUN - no foundry-stocks at $S" >&2;
+          echo "worktree-guard: set FOUNDRY_STOCKS to your checkout. Refusing to report success without checking." >&2;
+          exit 2; };
           python3 "$S/ci/lib/verified_worktree.py" .'
         language: system
         stages: [pre-commit]
