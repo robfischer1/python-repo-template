@@ -148,7 +148,7 @@ repos:
         name: opengrep SAST (CI parity — pre-push; notice if absent)
         entry: >-
           bash -c 'command -v opengrep >/dev/null 2>&1 ||
-          { echo "opengrep not installed — skipping SAST locally (CI enforces)"; exit 0; };
+          { echo "opengrep: CANNOT RUN - not installed (https://github.com/opengrep/opengrep). It is baked into every CI image, so this is a local gap only. Refusing to report success without scanning." >&2; exit 2; };
           export LANG=C.UTF-8 LC_ALL=C.UTF-8; opengrep scan --config rules/sast --error .'
         language: system
         stages: [pre-push]
