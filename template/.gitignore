@@ -34,3 +34,10 @@ htmlcov/
 
 # Agent worktrees — ephemeral isolation scratch from Agent(isolation: worktree)
 .claude/worktrees/
+
+# spec-kit's surface, laid down by `specify init` as a copier task and
+# regenerable by it. Same category as .claude/ — poured by a tool, not
+# authored here — and the pre-commit `exclude:` above already groups the two.
+# It was tracked anyway in 42 repos (1,005 files, ~24 per repo), which is not
+# a decision anybody wrote down: only .specify/feature.json was ever ignored.
+.specify/
