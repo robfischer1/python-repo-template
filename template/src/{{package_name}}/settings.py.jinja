@@ -34,7 +34,14 @@ class Settings(BaseSettings):
     # Set False to silence OTLP export (e.g. local dev with no collector).
     otel_enabled: bool = True
 {%- if mcp %}
-    host: str = "0.0.0.0"  # noqa: S104 — operator-chosen HTTP bind host
+    # Secure by default (S104: binding all interfaces is an operator CHOICE, not
+    # a code default). Loopback-only until told otherwise; a star reachable over
+    # the network (behind the Hades gateway, container-to-container) MUST set
+    # `{{ package_name | upper }}_HOST=0.0.0.0` explicitly in its deploy env —
+    # that env injection lives in rob/infra (this template stopped shipping a
+    # Dockerfile/compose.yaml at the Flame C4 recentralization; there is no
+    # in-repo file left to default it for you). README's env table says the same.
+    host: str = "127.0.0.1"
     port: int = {{ port }}
     # Heartbeat → Pontus: the Redpanda broker the {live,ready,metrics} beat ships
     # to (overridden to the in-network listener at deploy, e.g. chronos-redpanda:29092)

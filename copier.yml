@@ -282,9 +282,35 @@ _tasks:
   # -- reuse was inert in the anneal on both v0.18.2 and v0.18.3. This stamp is
   # git-blind + dependency-free: prepend the fixed header to every .py missing it
   # (after a shebang; skipping .venv/.git/__pycache__), idempotent. UPDATE-only --
-  # a fresh strike renders already-stamped template files. chr(58)+chr(32) spell
-  # ": " so the command carries no colon-space that would break the YAML scalar.
-  - command: python -c "import pathlib; H='# SPDX-FileCopyrightText'+chr(58)+chr(32)+'2026 Rob Fischer'+chr(10)+'#'+chr(10)+'# SPDX-License-Identifier'+chr(58)+chr(32)+'Apache-2.0'+chr(10)+chr(10); [p.write_text(t[:(t.index(chr(10))+1 if t.startswith('#!') else 0)]+H+t[(t.index(chr(10))+1 if t.startswith('#!') else 0):], encoding='utf-8') for p in pathlib.Path('.').rglob('*.py') if not {'.venv','.git','__pycache__'} & set(p.parts) and 'SPDX-FileCopyrightText' not in (t:=p.read_text(encoding='utf-8'))]" || true
+  # a fresh strike renders already-stamped template files.
+  #
+  # A trailing `|| true` used to sit on this task with no stated reason -- it
+  # was swallowing EVERY failure mode alike, including a genuine bug in this
+  # script. The one real, expected failure is a stray non-UTF-8 .py file
+  # somewhere in the star's tree (a fixture, a vendored blob): that one file is
+  # now skipped with a printed reason and the sweep continues, instead of either
+  # aborting the whole update over an unrelated file or hiding a real crash.
+  # Block scalar (not a one-line `-c`) so the per-file try/except can exist at
+  # all; no more chr(58)/chr(32) colon-escaping needed either, since a literal
+  # block YAML scalar doesn't choke on `: ` the way a plain scalar did.
+  - command: |
+      python3 - <<'STAMP'
+      import pathlib
+
+      H = "# SPDX-FileCopyrightText: 2026 Rob Fischer\n#\n# SPDX-License-Identifier: Apache-2.0\n\n"
+      for p in pathlib.Path(".").rglob("*.py"):
+          if {".venv", ".git", "__pycache__"} & set(p.parts):
+              continue
+          try:
+              t = p.read_text(encoding="utf-8")
+          except (UnicodeDecodeError, OSError) as e:
+              print(f"SPDX stamp: skipping {p} ({e})")
+              continue
+          if "SPDX-FileCopyrightText" in t:
+              continue
+          cut = t.index("\n") + 1 if t.startswith("#!") else 0
+          p.write_text(t[:cut] + H + t[cut:], encoding="utf-8")
+      STAMP
     when: "{{ _copier_operation == 'update' }}"
   # Ensure ruff's flake8-copyright notice-rgx ACCEPTS the SPDX form. The stanza
   # ships in pyproject.toml.jinja, but a star that skipped the v0.16.2 template
@@ -298,12 +324,18 @@ _tasks:
   # dead weight; the ONE thing the star still owns -- its sovereign spec -- is
   # RELOCATED to `{star}.tfvars` at root (rob/infra harvests it as
   # catalog/{star}.tfvars). MOVE before REMOVE so the operator's env survives.
-  # Update-only (a fresh copy has neither); idempotent (a migrated star no-ops via
-  # the existence guard + --ignore-unmatch). The removals land because anneal's
-  # verdict rules the retired shapes REMOVABLE (Flame C5).
-  - command: test -f infra/terraform.tfvars && git mv -f infra/terraform.tfvars {{ service_name }}.tfvars || true
+  # Update-only (a fresh copy has neither); idempotent via the explicit `if`
+  # existence guard below, not a blanket `|| true` -- a migrated star (file
+  # already gone) still no-ops, but a REAL `git mv` failure (dest exists,
+  # detached HEAD, permission denied) now fails the strike instead of being
+  # swallowed alongside the expected case.
+  - command: if test -f infra/terraform.tfvars; then git mv -f infra/terraform.tfvars {{ service_name }}.tfvars; fi
     when: "{{ _copier_operation == 'update' and mcp }}"
-  - command: git rm -r --ignore-unmatch --quiet compose.yaml infra || true
+  # `--ignore-unmatch` is git rm's OWN no-op-when-absent guard -- that already
+  # covers "a migrated star has nothing left to remove"; a trailing `|| true`
+  # on top of it added nothing but a way to hide a real `git rm` failure (not a
+  # git repo, index lock, permission denied). Removed the file, not the flag.
+  - command: git rm -r --ignore-unmatch --quiet compose.yaml infra
     when: "{{ _copier_operation == 'update' and mcp }}"
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
@@ -356,10 +388,14 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
   # fights furnace's CLAUDE.md @AGENTS.md shim, which furnace repours every ignite.
-  # The extension is deprecated (removed in spec-kit 0.12.0); `|| true` makes this a
-  # no-op on >=0.12.0 (where `disable` errors "not installed" and would fail the whole
-  # strike) while still disabling it on any older spec-kit that predates the removal.
-  - command: specify extension disable agent-context || true
+  # Some spec-kit builds ship the extension already-uninstalled (`disable` then
+  # errors "not installed" and would fail the whole strike); a blanket `|| true`
+  # used to swallow THAT case, but it just as quietly swallowed a real `disable`
+  # failure on a build where the extension IS present. Ask `list` first (always
+  # exits 0, present-or-not) and only call `disable` when agent-context actually
+  # shows up in it -- a real failure from that call now surfaces and rolls the
+  # strike back, same as every other task here.
+  - command: if specify extension list 2>/dev/null | grep -q agent-context; then specify extension disable agent-context; fi
     when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
   # code-repo-sdd = code-repo + the speckit surface (.specify/ overrides + the

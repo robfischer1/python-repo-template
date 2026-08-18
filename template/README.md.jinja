@@ -9,15 +9,15 @@ A standard Forge MCP service — streamable-HTTP, stateless, config-via-env.
 
 ```bash
 uv sync
-uv run {{ service_name }}     # streamable-HTTP on 0.0.0.0:$PORT (default {{ port }})
+uv run {{ service_name }}     # streamable-HTTP on 127.0.0.1:$PORT (default {{ port }})
 ```
 
 ## Configure (env)
 
 | Var | Default | Purpose |
 | :-- | :-- | :-- |
-| `PORT` | `{{ port }}` | streamable-HTTP listen port |
-| `HOST` | `0.0.0.0` | bind host |
+| `{{ package_name | upper }}_PORT` | `{{ port }}` | streamable-HTTP listen port |
+| `{{ package_name | upper }}_HOST` | `127.0.0.1` | bind host — loopback by default; a network-reachable deploy (e.g. behind the Hades gateway) must set this to `0.0.0.0` explicitly in its own env, not rely on the code default |
 {%- else %}
 
 A standard Forge Python package.
