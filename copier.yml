@@ -335,7 +335,32 @@ _tasks:
   # covers "a migrated star has nothing left to remove"; a trailing `|| true`
   # on top of it added nothing but a way to hide a real `git rm` failure (not a
   # git repo, index lock, permission denied). Removed the file, not the flag.
-  - command: git rm -r --ignore-unmatch --quiet compose.yaml infra
+  # compose.yaml and infra/ are RETIRED by this update (the deploy spec moved to
+  # <name>.tfvars, one task above). Removal is per-path and conditional, because
+  # the three obvious spellings are each wrong in a different way -- and all
+  # three shipped across these four templates at once, which is what prompted
+  # reconciling them:
+  #   * `git rm -r --ignore-unmatch` alone is ALL-OR-NOTHING across its
+  #     pathspecs. MEASURED (rust-repo-template, 2026-08-18): it exits 1 and
+  #     removes NEITHER path when just one of them carries a local
+  #     modification, so a star with edits under infra/ hard-fails its whole
+  #     copier update.
+  #   * `-f` makes the removal real, but FORCE-DELETES those operator edits.
+  #   * `|| true` / `|| echo` swallow the refusal, so "the removals land" was
+  #     hoped for rather than guaranteed, and nothing said which files survived.
+  # So: loop per path, skip one that is absent, remove one that is clean, and
+  # REFUSE one carrying local changes -- loudly and by name, without failing the
+  # update. Verified on all four paths (absent / clean / dirty / not-a-repo);
+  # in the dirty case the clean sibling is still removed and the dirty one named.
+  # Spelled with `if`, never `|| exit 0`: a swallow is exactly what this task is
+  # being rewritten to stop doing, and the stop-justifications gate scans this
+  # file -- it caught the first draft of this very command.
+  - command: >-
+      bash -c 'if git rev-parse --show-toplevel >/dev/null 2>&1; then
+      for p in compose.yaml infra; do if [ -e "$p" ]; then
+      if [ -n "$(git status --porcelain -- "$p")" ]; then
+      echo "copier: $p has local changes - NOT removed (retired by this update). Review, then: git rm -r $p" >&2;
+      else git rm -r --quiet --ignore-unmatch "$p"; fi; fi; done; fi'
     when: "{{ _copier_operation == 'update' and mcp }}"
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
@@ -395,7 +420,22 @@ _tasks:
   # exits 0, present-or-not) and only call `disable` when agent-context actually
   # shows up in it -- a real failure from that call now surfaces and rolls the
   # strike back, same as every other task here.
-  - command: if specify extension list 2>/dev/null | grep -q agent-context; then specify extension disable agent-context; fi
+  # spec-kit's agent-context extension is NOT installed by default, so a bare
+  # `specify extension disable agent-context` fails ("Extension 'agent-context'
+  # is not installed") every single time this task runs -- the `|| true` and
+  # `|| echo` spellings were masking a call that never once succeeded, not an
+  # occasional idempotency edge. Guard on presence instead.
+  #
+  # NOT `specify extension list 2>/dev/null | grep -q`: that spelling discards
+  # the list command's OWN failure, so a broken `.specify/` (from the task just
+  # above) reads as "not installed" and the strike continues on a repo that
+  # never got scaffolded. Capturing the output and checking its exit code keeps
+  # that failure loud. Verified all three paths: not-a-project -> exit 1 (loud),
+  # installed-but-absent -> exit 0 (clean skip), installed-and-enabled ->
+  # disabled, exit 0.
+  - command: >-
+      bash -c 'out="$(specify extension list)" || exit 1;
+      if echo "$out" | grep -q agent-context; then specify extension disable agent-context; fi'
     when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
   # code-repo-sdd = code-repo + the speckit surface (.specify/ overrides + the
