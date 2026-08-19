@@ -400,7 +400,23 @@ _tasks:
   # degrades to a loud skip: a stale lock reds the PR gate visibly, which beats
   # an update that never lands at all.
   - command: command -v uv >/dev/null 2>&1 && uv lock || echo "uv absent -- lock refresh skipped (the PR gate will catch a stale lock)"
-  - command: uvx detect-secrets@1.5.0 scan > .secrets.baseline
+  # The two ENTROPY plugins are disabled fleet-wide (2026-08-18). They are not
+  # tuned off for noise -- they are structurally incompatible with this fleet's
+  # identifiers. MEASURED across the 26 baselines that carried rows: 531 of 612
+  # rows (87%) came from HexHighEntropyString/Base64HighEntropyString, and of
+  # the hex runs in the files they flagged, 65% were exactly 64 chars (graph
+  # content addresses / name hashes) and 22% were exactly 40 (git SHAs).
+  # detect-secrets already exempts the CANONICAL dashed UUID via its
+  # is_potential_uuid filter ([a-f0-9]{8}-{4}-{4}-{4}-{12}); every un-dashed hex
+  # form fires, and a 64-hex content address cannot be rendered as a UUID.
+  # Not one of those 612 rows carried a review mark, so the baseline was not a
+  # reviewed allowlist -- it was 612 unread suppressions in the one surface
+  # nothing reads. The 25 FORMAT-SPECIFIC detectors (AWS, GitHub, Stripe, JWT,
+  # PrivateKey, BasicAuth, Keyword, ...) all stay on and keep 81 real rows.
+  # KNOWN COST, stated rather than discovered later: a high-entropy secret whose
+  # format no named detector recognises -- a hex-encoded 32-byte key, say -- now
+  # passes. That trade was made deliberately.
+  - command: uvx detect-secrets@1.5.0 scan --disable-plugin HexHighEntropyString --disable-plugin Base64HighEntropyString > .secrets.baseline
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
     when: "{{ _copier_operation == 'copy' }}"
