@@ -145,31 +145,38 @@ repos:
         pass_filenames: false
         always_run: true
       - id: opengrep-sast
-        name: opengrep SAST (CI parity — pre-push; notice if absent)
+        name: opengrep SAST (CI parity - pre-push; notice if absent)
+        # REFUSES A ZERO-FILE SCAN. `Ran N rules on 0 files: 0 findings` exits 0 and
+        # renders as Passed, which is indistinguishable from a clean scan. That is not
+        # hypothetical: go-repo-template and rust-repo-template shipped the PYTHON
+        # ruleset verbatim, so EVERY Go and Rust star ran a security gate that had
+        # never examined a single file, and reported success every time
+        # (foundry-stocks#4415). cerberus was worse - 29 .py and 37 .rs, so the count
+        # looked plausible while the whole Rust surface went unscanned.
+        #
+        # Fixing the two rulesets fixes the instances. This fixes the CLASS: any future
+        # languages/file-type mismatch is now loud on the first run instead of silent
+        # forever. Same principle as the CANNOT-RUN branch below - a check that cannot
+        # see anything must not answer "fine".
+        #
+        # Inline rather than a foundry-stocks script, deliberately: the opengrep hook
+        # has no FOUNDRY_STOCKS dependency today, and stars still on the per-family
+        # gates do not provision foundry-stocks on the go/rust/frontend lanes. Adding
+        # that coupling mid-migration would break them.
         entry: >-
           bash -c 'command -v opengrep >/dev/null 2>&1 ||
           { echo "opengrep: CANNOT RUN - not installed (https://github.com/opengrep/opengrep). It is baked into every CI image, so this is a local gap only. Refusing to report success without scanning." >&2; exit 2; };
-          export LANG=C.UTF-8 LC_ALL=C.UTF-8; opengrep scan --config rules/sast --error .'
+          export LANG=C.UTF-8 LC_ALL=C.UTF-8;
+          out=$(opengrep scan --config rules/sast --error . 2>&1); rc=$?;
+          printf "%s\n" "$out";
+          if printf "%s" "$out" | grep -qE "Ran [0-9]+ rules on 0 files"; then
+          echo "opengrep: REFUSING a zero-file scan. The ruleset matched no file in this repo, so 0 findings means NOTHING WAS EXAMINED - not that the code is clean. Check that rules/sast/dataflow.yml declares the language(s) this repo is actually written in." >&2;
+          exit 2; fi;
+          exit $rc'
         language: system
         stages: [pre-push]
         pass_filenames: false
         always_run: true
-# The worktree backstop. A commit belongs in a LINKED worktree, never the
-      # shared checkout — the primary tree is the one every session can reach at
-      # once, so a commit there stages whatever a sibling has in flight.
-      # `forge-git lock` chmods the primary read-only for the same reason; this
-      # is that rule at the commit boundary, where the damage gets recorded.
-      #
-      # One definition in foundry-stocks so every template enforces the SAME
-      # check — the discriminator (--git-dir vs --git-common-dir) is easy to get
-      # subtly wrong, and it must scrub git's repo-location env or an inherited
-      # GIT_DIR makes every directory answer "worktree", the shared checkout
-      # included. Exempt under CI (the script returns 0 when $CI is set — a plain
-      # clone has no worktree to be wrong about); bypass with
-      # FORGE_ALLOW_SHARED_CHECKOUT=1. A MISSING foundry-stocks is NOT a bypass:
-      # it exits 2, 'could not run', never 0. It used to exit 0, and because
-      # pre-commit hides a passing hook's output that skip was invisible — every
-      # green 'commit from a linked worktree' may have been a skip, not a pass.
       - id: worktree-guard
         name: commit from a linked worktree, not the shared checkout
         entry: >-
