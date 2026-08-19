@@ -4,35 +4,38 @@
 # Coverage says a line RAN. Mutation says a line is TESTED: the gate breaks the
 # source on purpose and fails when the suite does not notice.
 #
-# Two triggers, two different jobs:
-#   pull_request  diff-scoped — mutates only the lines the PR added (1-3 min).
-#   schedule      the nightly full run over every site in critical-modules.
-#                 The reusable workflow forces full mode on a scheduled run;
-#                 a nightly that only re-mutated last night's diff would
-#                 measure nothing.
+# TWO FILES, NOT ONE — this one and mutation-nightly.yml. This stub used to be a
+# single workflow carrying BOTH triggers, which the reusable workflow argues
+# against at length and which none of the 24 hand-wired callers actually use:
+# on a pull_request the scheduled job reports `skipped`, and a required check
+# reporting anything other than success is the hazard ci.yml spends a paragraph
+# on. One trigger per file, one status per event.
 #
-# fail-under is 0 (report-only) at birth ON PURPOSE. Read the honest score off
-# a few nightly runs first, then raise it here. A threshold nobody has measured
-# is a threshold everyone learns to skip.
+# NO paths-ignore, and its removal is the other half of the same fix. A
+# filtered-out PR posts NO STATUS AT ALL, and a required check that never
+# reports blocks its PR forever — the exact failure ci.yml warns about. The
+# reusable workflow already no-ops internally when a PR touches none of the
+# critical modules: the job still runs, and still reports success.
+#
+# WHAT THIS GATE JUDGES IS THE DIFF, not the repo. It mutates only the lines the
+# PR added, so `fail-under` is a claim about the code you just wrote and says
+# nothing about the module's legacy score. The whole-module number is the
+# nightly's job.
+#
+# fail-under is 0 (report-only) at birth ON PURPOSE. Read the honest score off a
+# few nightly runs first, then raise it here. A threshold nobody has measured is
+# a threshold everyone learns to skip.
 name: mutation
 
 on:
   pull_request:
-    paths-ignore:
-      - ".forgejo/**"
-      - "**.md"
-  schedule:
-    # Off-peak, off the hour — the mutation job is the most CPU-hungry in the
-    # fleet (one full suite run PER MUTANT), so it must not collide with the
-    # nightly base-rescan / deploy sweeps.
-    - cron: "23 8 * * *"
-  workflow_dispatch:
 
 jobs:
   mutation:
     uses: foundry/foundry-stocks/.forgejo/workflows/mutation.yml@main
     with:
       critical-modules: "{{ critical_modules }}"
+      mode: diff
       fail-under: 0
     # pragma comment: detect-secrets flags the word 'secrets' as a Secret Keyword,
     # and `secrets: inherit` is the reusable-workflow idiom, not a credential.

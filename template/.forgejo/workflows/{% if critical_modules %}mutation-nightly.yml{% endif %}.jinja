@@ -1,0 +1,37 @@
+# Caller stub (Test Hardening C1) — the nightly FULL run.
+#
+# Separate file from mutation.yml on purpose; see that file's header. Both
+# triggers in one workflow means a pull_request reports the scheduled job as
+# `skipped`, and a required check reporting anything but success blocks its PR.
+#
+# NOT GATED — `fail-under: 0`. This is the number that tracks suite quality over
+# time across the whole module, and it starts wherever history left it. Gating it
+# on day one reds a nightly for debt nobody in a PR wrote, and a red nobody can
+# act on is how a gate gets ignored. The PR gate binds; this measures.
+#
+# The reusable workflow forces full mode on a scheduled run regardless of what
+# is passed here — a nightly that only re-mutated last night's diff would
+# measure nothing — but `mode: full` is stated anyway so the file reads as what
+# it is, and so `workflow_dispatch` behaves the same as the schedule.
+#
+# MOVE THIS CRON. The python family staggers ~7 minutes apart across 07:00-09:59
+# so the runs do not pile onto llm01. This default is off the hour but is NOT a
+# reserved slot — a template cannot know who has been struck since it was
+# written, so check the family before you trust it.
+name: mutation-nightly
+
+on:
+  schedule:
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    uses: foundry/foundry-stocks/.forgejo/workflows/mutation.yml@main
+    with:
+      critical-modules: "{{ critical_modules }}"
+      mode: full
+      fail-under: 0
+    # pragma comment: detect-secrets flags the word 'secrets' as a Secret Keyword,
+    # and `secrets: inherit` is the reusable-workflow idiom, not a credential.
+    secrets: inherit  # pragma: allowlist secret
