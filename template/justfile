@@ -35,8 +35,33 @@ sync:
     uv sync --all-extras --locked
 
 # Format + lint via the repo's pre-commit hooks (ruff et al.)
+#
+# ⚑ `--all-files` DOES NOT MEAN ALL FILES. It means every file GIT KNOWS
+# ABOUT, so a newly written module is INVISIBLE to lint until it is staged:
+# `just check` passes green, and the commit hook then fails on the same file
+# for findings the gate just told you were not there.
+#
+# MEASURED TWICE IN ONE DAY, 2026-08-19. A new mnemosyne module carried five
+# ruff findings (D401 x4, N818) through a green `just check`, surfacing only
+# at `git add`. A new eris test carried a TC003 the same way hours earlier.
+# Both were caught by the commit hook, which is the gate working — but it is
+# the SLOW gate, after the message is written, and it teaches people that
+# green means nothing.
+#
+# So a second pass covers what the first cannot see. It runs only when there
+# ARE untracked files, and `--exclude-standard` honours .gitignore, so build
+# output and .venv stay out of it. Two passes rather than one union list
+# because each keeps pre-commit's own semantics intact — `--all-files` still
+# does exactly what it always did.
 lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
     uv run pre-commit run --all-files --show-diff-on-failure
+    mapfile -t untracked < <(git ls-files --others --exclude-standard)
+    if [ ${#untracked[@]} -gt 0 ]; then
+        printf 'lint: %d untracked file(s) --all-files would have skipped\n' "${#untracked[@]}"
+        uv run pre-commit run --show-diff-on-failure --files "${untracked[@]}"
+    fi
 
 # BOTH type checkers, matching CI — they disagree, and CI runs both
 types:
