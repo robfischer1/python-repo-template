@@ -505,6 +505,72 @@ _tasks:
 # otherwise eat. Regenerate with:
 #   git show <sha>:template/justfile | python3 -c 'import base64,sys;print(base64.b64encode(sys.stdin.buffer.read()).decode())'
 _migrations:
+
+  # ONE-OFF SWEEP for v0.25.13: carry the untracked-file lint fix to stars
+  # already born. Same mechanism, same reasons, same safety rules as the
+  # v0.20.2 sweep below — read that block first; this one only restates what
+  # differs.
+  #
+  # ⚑ WHY A MIGRATION AND NOT JUST THE TEMPLATE EDIT. `justfile` is in
+  # `_skip_if_exists`, so the fix in #86 (v0.25.11) reaches NEWLY GENERATED
+  # repos ONLY. `copier update` does not deliver it and cannot — measured
+  # 2026-08-20 on mnemosyne, which updated v0.25.4 -> v0.25.11, took the
+  # .pre-commit-config.yaml changes, and did NOT take the justfile. The fix had
+  # to be hand-carried there. eris still carries the defect (v0.25.3), and any
+  # Python star born before #86 landed would too.
+  #
+  # DRY-RUN AGAINST THE REAL CONSUMERS before this was written, not after:
+  #   eris       v0.25.3   -> sweeps, file changes
+  #   mnemosyne  v0.25.11  -> no-op, already carries the fix by hand
+  #   vault-mcp            -> NOT AFFECTED. It has no justfile at all; its
+  #                           --all-files runs in CI, where everything is
+  #                           committed by definition, so there is no untracked
+  #                           file to be blind to. The blind spot needs a LOCAL
+  #                           gate. An earlier note of mine claimed otherwise.
+  #
+  # THE DEFECT IT CARRIES. `pre-commit run --all-files` means every file GIT
+  # KNOWS ABOUT, so a newly written module is invisible to lint until it is
+  # staged: `just check` passes green and the commit hook then fails on the
+  # same file for findings the gate just said were not there. It bit mnemosyne
+  # three times in two days — five ruff findings in one new module, a TC003 in
+  # a new eris test, and a D107 in a new module during a later session, all
+  # through a green gate.
+  #
+  # ONE PRIOR SHAPE, not two. The whole history of this recipe is two versions:
+  # the original four-liner, byte-identical across 0818145..2c49000, and the
+  # fixed block from 715df90. Verified by hashing the block at every commit
+  # that touched template/justfile.
+  #
+  # IDEMPOTENT, which matters more here than for v0.20.2: mnemosyne already
+  # carries the fix by hand, so this MUST no-op there rather than double-apply.
+  # The `NEW in t` guard is what makes that true.
+  #
+  # Regenerate the payloads with:
+  #   git show <ref>:template/justfile | python3 -c 'import sys;
+  #     t=sys.stdin.read(); s=t.index("# Format + lint"); e=t.index("# BOTH type checkers");
+  #     import base64; print(base64.b64encode(t[s:e].encode()).decode())'
+  - version: v0.25.13
+    when: "{{ _stage == 'after' }}"
+    command: |
+      python3 - <<'SWEEP'
+      import base64, pathlib, sys
+      PRIOR = [base64.b64decode("IyBGb3JtYXQgKyBsaW50IHZpYSB0aGUgcmVwbydzIHByZS1jb21taXQgaG9va3MgKHJ1ZmYgZXQgYWwuKQpsaW50OgogICAgdXYgcnVuIHByZS1jb21taXQgcnVuIC0tYWxsLWZpbGVzIC0tc2hvdy1kaWZmLW9uLWZhaWx1cmUKCg==").decode()]
+      NEW = base64.b64decode("IyBGb3JtYXQgKyBsaW50IHZpYSB0aGUgcmVwbydzIHByZS1jb21taXQgaG9va3MgKHJ1ZmYgZXQgYWwuKQojCiMg4pqRIGAtLWFsbC1maWxlc2AgRE9FUyBOT1QgTUVBTiBBTEwgRklMRVMuIEl0IG1lYW5zIGV2ZXJ5IGZpbGUgR0lUIEtOT1dTCiMgQUJPVVQsIHNvIGEgbmV3bHkgd3JpdHRlbiBtb2R1bGUgaXMgSU5WSVNJQkxFIHRvIGxpbnQgdW50aWwgaXQgaXMgc3RhZ2VkOgojIGBqdXN0IGNoZWNrYCBwYXNzZXMgZ3JlZW4sIGFuZCB0aGUgY29tbWl0IGhvb2sgdGhlbiBmYWlscyBvbiB0aGUgc2FtZSBmaWxlCiMgZm9yIGZpbmRpbmdzIHRoZSBnYXRlIGp1c3QgdG9sZCB5b3Ugd2VyZSBub3QgdGhlcmUuCiMKIyBNRUFTVVJFRCBUV0lDRSBJTiBPTkUgREFZLCAyMDI2LTA4LTE5LiBBIG5ldyBtbmVtb3N5bmUgbW9kdWxlIGNhcnJpZWQgZml2ZQojIHJ1ZmYgZmluZGluZ3MgKEQ0MDEgeDQsIE44MTgpIHRocm91Z2ggYSBncmVlbiBganVzdCBjaGVja2AsIHN1cmZhY2luZyBvbmx5CiMgYXQgYGdpdCBhZGRgLiBBIG5ldyBlcmlzIHRlc3QgY2FycmllZCBhIFRDMDAzIHRoZSBzYW1lIHdheSBob3VycyBlYXJsaWVyLgojIEJvdGggd2VyZSBjYXVnaHQgYnkgdGhlIGNvbW1pdCBob29rLCB3aGljaCBpcyB0aGUgZ2F0ZSB3b3JraW5nIOKAlCBidXQgaXQgaXMKIyB0aGUgU0xPVyBnYXRlLCBhZnRlciB0aGUgbWVzc2FnZSBpcyB3cml0dGVuLCBhbmQgaXQgdGVhY2hlcyBwZW9wbGUgdGhhdAojIGdyZWVuIG1lYW5zIG5vdGhpbmcuCiMKIyBTbyBhIHNlY29uZCBwYXNzIGNvdmVycyB3aGF0IHRoZSBmaXJzdCBjYW5ub3Qgc2VlLiBJdCBydW5zIG9ubHkgd2hlbiB0aGVyZQojIEFSRSB1bnRyYWNrZWQgZmlsZXMsIGFuZCBgLS1leGNsdWRlLXN0YW5kYXJkYCBob25vdXJzIC5naXRpZ25vcmUsIHNvIGJ1aWxkCiMgb3V0cHV0IGFuZCAudmVudiBzdGF5IG91dCBvZiBpdC4gVHdvIHBhc3NlcyByYXRoZXIgdGhhbiBvbmUgdW5pb24gbGlzdAojIGJlY2F1c2UgZWFjaCBrZWVwcyBwcmUtY29tbWl0J3Mgb3duIHNlbWFudGljcyBpbnRhY3Qg4oCUIGAtLWFsbC1maWxlc2Agc3RpbGwKIyBkb2VzIGV4YWN0bHkgd2hhdCBpdCBhbHdheXMgZGlkLgpsaW50OgogICAgIyEvdXNyL2Jpbi9lbnYgYmFzaAogICAgc2V0IC1ldW8gcGlwZWZhaWwKICAgIHV2IHJ1biBwcmUtY29tbWl0IHJ1biAtLWFsbC1maWxlcyAtLXNob3ctZGlmZi1vbi1mYWlsdXJlCiAgICBtYXBmaWxlIC10IHVudHJhY2tlZCA8IDwoZ2l0IGxzLWZpbGVzIC0tb3RoZXJzIC0tZXhjbHVkZS1zdGFuZGFyZCkKICAgIGlmIFsgJHsjdW50cmFja2VkW0BdfSAtZ3QgMCBdOyB0aGVuCiAgICAgICAgcHJpbnRmICdsaW50OiAlZCB1bnRyYWNrZWQgZmlsZShzKSAtLWFsbC1maWxlcyB3b3VsZCBoYXZlIHNraXBwZWRcbicgIiR7I3VudHJhY2tlZFtAXX0iCiAgICAgICAgdXYgcnVuIHByZS1jb21taXQgcnVuIC0tc2hvdy1kaWZmLW9uLWZhaWx1cmUgLS1maWxlcyAiJHt1bnRyYWNrZWRbQF19IgogICAgZmkKCg==").decode()
+      p = pathlib.Path("justfile")
+      if not p.exists():
+          print("copier: no justfile here - nothing to sweep"); sys.exit(0)
+      t = p.read_text(encoding="utf-8")
+      if NEW in t:
+          print("copier: lint already sees untracked files"); sys.exit(0)
+      for old in PRIOR:
+          if old in t:
+              p.write_text(t.replace(old, NEW, 1), encoding="utf-8")
+              print("copier: swept the lint recipe - `just lint` now covers "
+                    "untracked files, which --all-files cannot see")
+              sys.exit(0)
+      print("copier: the lint recipe matches no shape this template shipped -")
+      print("copier: LEAVING IT ALONE. Reconcile by hand against v0.25.13.")
+      SWEEP
   - version: v0.20.2
     when: "{{ _stage == 'after' }}"
     command: |
