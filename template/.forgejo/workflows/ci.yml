@@ -1,5 +1,20 @@
 # Caller stub (Flame pull-CI) — logic lives in foundry/foundry-stocks; invariant,
 # copier-shipped. Retires the ci.tf pour + the launcher/channel.
+# ON THE CANONICAL GATE (wave 3, foundry-stocks#4839 / #597). This stub used to call
+# foundry-stocks' ci.yml — one of the four LEGACY per-family gates, which are
+# being deleted. It now calls the one canonical gate.yml and names its lane explicitly.
+#
+# THE TEMPLATE WAS THE LAST THING STILL POINTING AT THE LEGACY GATES. All 47 stars were
+# migrated by hand between 2026-08-19 and 2026-08-21; the templates were not, so every
+# newly-stamped star got a legacy stub and every `copier update` was one template-side
+# edit away from dragging a migrated star back. It survived this long only because the
+# shipped stub happened not to change, so copier's 3-way merge kept each star's local
+# repoint.
+#
+# `lane:` IS THE ONLY THING THAT CARRIES THE FAMILY NOW. gate.yml picks the container
+# image from it, and its push path reads the lane declared HERE to decide which of
+# build.yml's four unconditional gate calls belongs to this star. The filename does not
+# select anything.
 name: ci
 on:
   # NO paths-ignore, deliberately. A filtered-out PR runs no workflow and therefore
@@ -16,7 +31,9 @@ on:
   pull_request:
 jobs:
   ci:
-    uses: foundry/foundry-stocks/.forgejo/workflows/ci.yml@main
+    uses: foundry/foundry-stocks/.forgejo/workflows/gate.yml@main
+    with:
+      lane: python
     # pragma comment: detect-secrets flags the word 'secrets' as a Secret Keyword,
     # and `secrets: inherit` is the reusable-workflow idiom, not a credential.
     secrets: inherit  # pragma: allowlist secret
