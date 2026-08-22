@@ -16,7 +16,23 @@
 default_install_hook_types: [pre-commit, pre-push]
 exclude: '^(template/|\.claude/|\.specify/|\.furnace/)'
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
+# HOOK REPOS COME FROM OUR MIRROR, not github. pre-commit CLONES each `repo:`,
+# and until 2026-08-22 every gate run in the fleet fetched these from github.com
+# on each cold pre-commit cache — 53 repos pinning pre-commit-hooks, 47 ruff, 41
+# detect-secrets. A cold-cache github fetch is what reddened a cerberus gate with
+# "Executable `detect-secrets-hook` not found" while the env was still building.
+#
+# NEXUS CANNOT SERVE THIS. It is the fleet's package edge and gate.yml routes pip
+# and uv through its pypi proxy, but Nexus 3.94.1 has no git format — the
+# `gitlfs` one is LFS objects, not clones, and a raw proxy 404s the
+# git-upload-pack handshake. Forgejo pull-mirrors are the only mechanism that
+# serves a clone (rob/infra#1811, `hooks` org, 24h interval, prune on).
+#
+# RENOVATE STILL BUMPS THESE. Its pre-commit manager supports the `forgejo-tags`
+# datasource and it already runs against this Forgejo as its platform. Reading
+# revs from the mirror also means it can never propose a tag the mirror has not
+# synced yet — the pin and the source cannot drift apart.
+  - repo: https://forgejo.notusmi.com/hooks/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
