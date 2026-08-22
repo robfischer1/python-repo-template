@@ -108,6 +108,28 @@ packages = ["src/{{ package_name }}"]
 [tool.ruff]
 line-length = 80
 
+
+# PYDANTIC EVALUATES ANNOTATIONS AT RUNTIME, and ruff cannot know that on its
+# own. Without this, TC001/TC002/TC003 see a name used only in an annotation and
+# offer to move the import under `if TYPE_CHECKING:` — on a pydantic model that
+# fix is a BUG, because the model is built from the annotation at import time.
+#
+# MEASURED 2026-08-22 by taking ruff's own fix on two stars: clio went from 190
+# passing to 18 errors ("HistoryIngestEvent is not fully defined; you should
+# define `datetime`"), and in thalassa `SessionTurnEvent.model_rebuild()` began
+# raising PydanticUndefinedAnnotation. Every star stamped here answers
+# `mcp: true` and ships pydantic models, so the exposure is the whole fleet.
+#
+# Naming the runtime-evaluated bases tells ruff WHEN the annotation is read, so
+# it stops reporting those imports at all. That is a correction to the tool's
+# model of the code, not a suppression of a finding — the rule still fires
+# everywhere the annotation really is type-only.
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "pydantic_settings.BaseSettings",
+]
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
