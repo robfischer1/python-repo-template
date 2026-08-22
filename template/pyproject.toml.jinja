@@ -85,9 +85,27 @@ path = "src/{{ package_name }}/__init__.py"
 packages = ["src/{{ package_name }}"]
 
 # Lint / type / test baseline — the canonical Forge policy
-# (furnace/source/templates/pyproject.toml; furnace code-standards block).
+# (furnace code-standards block).
+#
+# `target-version` is DELIBERATELY UNSET, so ruff infers it from
+# `project.requires-python` above. It used to be the literal `py312` while
+# requires-python said `>=3.14`, .python-version said 3.14 and mypy said 3.14 —
+# a fourth writer of the same fact, and the only one that had gone stale. It
+# silently held the whole python fleet's lint at 3.12: MEASURED 2026-08-22,
+# 21 of 24 python repos resolved to 3.12, and the two that had been corrected
+# to py314 by hand (athena, themis) were walked back to py312 by an ordinary
+# `copier update` — pyproject is a 3-way merge seam, so the template's stale
+# literal overwrote the star's correct one, and the manifest guard did not see
+# it because it projects `[project]` and `dependency-groups` only, never
+# `[tool.*]`.
+#
+# VERIFIED by execution, not by reading a doc — ruff 0.16.0 `--show-settings`
+# against a fixture with requires-python `>=3.14`:
+#   target-version absent -> linter/formatter unresolved_target_version = 3.14
+#   target-version py312  -> 3.12 (the literal wins; this was the fleet's state)
+# Leaving it unset removes the second writer instead of resynchronising it, so
+# raising requires-python is now the ONE edit that moves the lint floor.
 [tool.ruff]
-target-version = "py312"
 line-length = 80
 
 [tool.ruff.lint]
