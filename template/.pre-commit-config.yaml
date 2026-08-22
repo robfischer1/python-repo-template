@@ -125,23 +125,39 @@ repos:
         files: ^src/.*\.py$
         types: [python]
         stages: [pre-commit]
+      # --all-extras ON ALL THREE, and it is what makes the name true. These
+      # hooks say "CI parity"; the image installs the project's extras
+      # (`uv sync --locked --no-dev --extra pg --extra kafka`) and these hooks
+      # did not, so a lazily-imported optional dependency was unresolvable to
+      # mypy and pyright locally while CI resolved it fine. Measured 2026-08-22:
+      # 19 repos, every one of them, because this file pours it — nyx failed
+      # `uv run mypy src tests` with 1 error and passed `--all-extras` with 0.
+      #
+      # `--all-extras` rather than naming them: extras are per-repo (kafka, pg,
+      # mtls, claims, classes, http, testing across the fleet) and this template
+      # cannot know which a consumer declares. For a type check, installing more
+      # than the image only ever improves resolution.
+      #
+      # The alternative — an ignore_missing_imports override — silences mypy
+      # only, leaves pyright's reportMissingImports failing, and suppresses a
+      # checker that was correctly reporting a real gap in its own environment.
       - id: mypy
         name: mypy (CI parity — pre-push)
-        entry: uv run mypy src tests
+        entry: uv run --all-extras mypy src tests
         language: system
         stages: [pre-push]
         pass_filenames: false
         types: [python]
       - id: pyright
         name: pyright (CI parity — pre-push)
-        entry: uv run pyright
+        entry: uv run --all-extras pyright
         language: system
         stages: [pre-push]
         pass_filenames: false
         types: [python]
       - id: pytest
         name: pytest (CI parity — pre-push)
-        entry: uv run pytest -q
+        entry: uv run --all-extras pytest -q
         language: system
         stages: [pre-push]
         pass_filenames: false
