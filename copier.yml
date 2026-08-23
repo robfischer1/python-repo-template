@@ -57,15 +57,39 @@ _skip_if_exists:
   # for the rest of the file. It cost athena and themis their
   # `target-version = "py314"` on an ordinary update (athena 2193835) with the
   # guard green, and left 21 of 24 python repos linting at 3.12 while declaring
-  # `requires-python = ">=3.14"`. The guard now reads the python floor at all
-  # three writers — requires-python, `[tool.ruff] target-version`, `[tool.mypy]
-  # python_version` — comparing EFFECTIVE floors so deleting a redundant literal
-  # still reads as the raise it is.
+  # `requires-python = ">=3.14"`. The guard now reads the python floor at every
+  # writer — requires-python, `[tool.ruff] target-version`, `[tool.mypy]
+  # python_version`, `[tool.pyright] pythonVersion` — comparing EFFECTIVE floors
+  # so deleting a redundant literal still reads as the raise it is. (This
+  # paragraph said "all three writers" while the guard already read four; the
+  # pyright writer was found when narcissus sat at `pythonVersion = "3.12"`
+  # against a 3.14 file and `ruff format`'s unparenthesised except-group became
+  # a pyright syntax error. Four in pyproject, five counting `.python-version`.)
+  #
+  # THE SECOND HALF LANDED 2026-08-23, and it is the same shape one table over.
+  # `strictness` projected `[tool.mypy] strict` alone, so the guard could tell
+  # you the floor moved but not that type checking had been switched OFF. It now
+  # projects every writer that can weaken a star:
+  #
+  #     [tool.mypy]    strict · disable_error_code (a code ADDED is a relaxation)
+  #     [tool.pyright] typeCheckingMode · every report* rule
+  #     [[tool.pyright.executionEnvironments]]  the same rules, PER ROOT
+  #
+  # 24 projected keys before, 209 after. The per-root form is the one that
+  # actually bit: mnemosyne carried `reportPrivateUsage = false` under an
+  # executionEnvironments block for `tests` from 2026-07-04 until mnemosyne#188
+  # removed it, and in between a session read the disabled rule as a CONVENTION
+  # and cited it to justify reaching past module seams. No `[project]` field
+  # describes any of that. Both directions are asymmetric on purpose — a rule
+  # newly set to off is refused, removing a relaxation never is, because a guard
+  # that refuses the repair of the thing it guards is worse than absent.
   #
   # The lesson generalises past this file: the reason for holding the seam open
   # is only as good as the detector it defers to, so ANY future `[tool.*]` field
   # a star is expected to own needs a projection in that guard, or this comment
-  # goes back to being a promise the fleet cannot keep.
+  # goes back to being a promise the fleet cannot keep. Twice now it has been
+  # exactly that, and both times the gap was found by a star losing something
+  # rather than by anyone reading this paragraph.
   #
   # Everything else that was still merged joins the list. .gitignore because a
   # consumer customises it — a frontend star was measured about to lose nine local
