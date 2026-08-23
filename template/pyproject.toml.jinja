@@ -12,12 +12,19 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-settings>=2.0",
+{%- if variant == 'star' %}
     # The op-contract ({live, ready, metrics}), the Nyx admission client, and the
     # Hemera OTLP helper come from the stellar_core SDK — pre-baked into the
     # stellar_core base image (warm builds), resolved from the Forgejo PyPI for
     # local dev. The CI admission gate is still a CI-time tool pulled ephemerally
     # by .forgejo/workflows/admit.yml, not a project dependency.
+    #
+    # GATED WITH THE FILES THAT IMPORT IT. health.py and heartbeat.py are the
+    # only importers in this template and both are now poured only into a star,
+    # so a library carrying this dependency would carry an SDK nothing in it
+    # uses.
     "stellar-core>=1.0.3",
+{%- endif %}
 {%- if mcp %}
     # Pinned to a minor: mcp's transport-security defaults (DNS-rebinding) shift
     # across minors, and an unpinned floor let stars stamped days apart resolve
