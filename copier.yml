@@ -51,6 +51,22 @@ _skip_if_exists:
   # star-owned field. Uniform closure would have been wrong for exactly one of
   # the five templates, and this is it.
   #
+  # THAT DETECTION WAS HALF-BUILT UNTIL 2026-08-22, and this paragraph asserted
+  # it anyway. manifest_guard.py projected `[project]` and `dependency-groups`
+  # and nothing under `[tool.*]`, so the promise held for dependencies and failed
+  # for the rest of the file. It cost athena and themis their
+  # `target-version = "py314"` on an ordinary update (athena 2193835) with the
+  # guard green, and left 21 of 24 python repos linting at 3.12 while declaring
+  # `requires-python = ">=3.14"`. The guard now reads the python floor at all
+  # three writers — requires-python, `[tool.ruff] target-version`, `[tool.mypy]
+  # python_version` — comparing EFFECTIVE floors so deleting a redundant literal
+  # still reads as the raise it is.
+  #
+  # The lesson generalises past this file: the reason for holding the seam open
+  # is only as good as the detector it defers to, so ANY future `[tool.*]` field
+  # a star is expected to own needs a projection in that guard, or this comment
+  # goes back to being a promise the fleet cannot keep.
+  #
   # Everything else that was still merged joins the list. .gitignore because a
   # consumer customises it — a frontend star was measured about to lose nine local
   # lines, among them a `!tools/parity/fixtures/**` negation whose own comment
