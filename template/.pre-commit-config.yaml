@@ -185,6 +185,67 @@ repos:
         stages: [pre-push]
         pass_filenames: false
         always_run: true
+      - id: sast-ruleset-lanes
+        name: SAST ruleset declares every lane this repo builds (pre-push)
+        # THE COMPANION TO THE ZERO-FILE REFUSAL BELOW, and it exists because that
+        # refusal has one blind spot it structurally cannot close.
+        #
+        # The refusal fires on `Ran N rules on 0 files`. It catches a repo whose
+        # ruleset matches NOTHING. It cannot catch a repo whose ruleset matches
+        # SOMETHING and misses the rest — and that is the worse case, because a
+        # non-zero file count reads as a real scan at every layer that looks.
+        # foundry-stocks#4949 measured it: chaos scanned 28 of 2636 tracked files
+        # and themis 26 of 2221, both exit 0, both green, with 74 and 44
+        # first-party Go files that had never been examined by SAST.
+        #
+        # WHY A LANE CHECK RATHER THAN A FILE-COUNT THRESHOLD. "Ruleset languages
+        # intersect actual file types" is the obvious test and it is too weak:
+        # chaos's ruleset DID intersect its lanes (it has .py and declared python)
+        # while its compiled half went unread. Any count threshold is also
+        # arbitrary and would fire on incidental python — the hook scripts and
+        # fixture generators every Go star carries. So the predicate is
+        # STRUCTURAL instead: a go.mod means Go is a lane this repo builds, a
+        # pyproject.toml means Python is, and a lane a repo builds is a lane its
+        # security gate must name. That is a fact about the tree, not a heuristic.
+        #
+        # WHY IT HAS TO LIVE HERE. `rules/**` is `_skip_if_exists`, so a fixed
+        # template ruleset can never reach a star that already has one — that is
+        # what made #4415 undrainable and #4949 recur inside a day when chaos and
+        # themis moved onto the Go template carrying their python rulesets.
+        # `.pre-commit-config.yaml` is the mirror image: copier OWNS it, create
+        # AND update, so a hook added here reaches every existing star on its next
+        # update. It is the one surface that can close this class.
+        #
+        # Inline and dependency-free, for the same reason the opengrep hook below
+        # is: stars on the per-family gates do not provision foundry-stocks, and
+        # adding that coupling would break them.
+        #
+        # Verified before landing, across all 45 cloned repos carrying a
+        # rules/sast: 43 pass, and the only two failures are cerberus and tron —
+        # a stale python ruleset with NO opengrep hook to read it, which #4949 set
+        # aside deliberately as an inert dead file rather than a security gap.
+        # Negative control: a tree with go.mod and a python-only ruleset exits 2;
+        # correcting the ruleset to [go] exits 0.
+        entry: >-
+          bash -c 'test -d rules/sast || exit 0;
+          decl=$(cat rules/sast/*.yml 2>/dev/null | grep -vE "^[[:space:]]*#" | grep -oE "languages:[[:space:]]*\[[^]]*\]" | sed -E "s/.*\[//;s/\]//" | tr "," "\n" | sed -E "s/[^a-z]//g" | grep -vE "^$" | sort -u);
+          missing="";
+          for pair in go.mod:go Cargo.toml:rust pyproject.toml:python; do
+          f=${pair%%:*}; lang=${pair##*:};
+          test -f "$f" || continue;
+          printf "%s\n" "$decl" | grep -qx "$lang" || missing="$missing $lang($f)";
+          done;
+          if test -f package.json; then
+          printf "%s\n" "$decl" | grep -qxE "typescript|javascript" || missing="$missing typescript-or-javascript(package.json)";
+          fi;
+          test -z "$missing" && exit 0;
+          echo "sast-ruleset-lanes: rules/sast declares [$(printf "%s" "$decl" | tr "\n" " ")] but this repo also builds:$missing" >&2;
+          echo "A ruleset that never names a lane never examines it, and opengrep still exits 0 whenever some OTHER language matched - the partial-scan case the zero-file refusal cannot see (foundry-stocks#4949)." >&2;
+          exit 2'
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
       - id: opengrep-sast
         name: opengrep SAST (CI parity - pre-push; notice if absent)
         # REFUSES A ZERO-FILE SCAN. `Ran N rules on 0 files: 0 findings` exits 0 and
