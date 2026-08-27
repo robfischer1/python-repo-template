@@ -460,11 +460,25 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   - command: uv run pre-commit install
     when: "{{ _copier_operation == 'copy' }}"
+  # The spec-kit override set — the Forge constitution, the four template overrides
+  # and the forge-feature workflow — is a COPIER TEMPLATE now (foundry-stocks' root
+  # copier.yml rendering speckit/; The Copier Turn C1, 2026-08-27), not a furnace
+  # surface. It lands BEFORE `specify init`: `specify init --here --force` leaves
+  # every `.specify/` file it finds alone (measured on 0.12.18 with all six
+  # pre-seeded) and rewrites only the rendered plan skill, which the re-lay task
+  # below restores. A second answers file, `.copier-answers.speckit.yml`, so it
+  # never collides with this template's own. `--overwrite` so a headless strike
+  # never prompts; `--defaults` because the template asks nothing. Latest
+  # foundry-stocks tag by default — every merge there is tagged, so no pin here.
+  - command: uvx --from copier==9.17.2 copier copy --defaults --overwrite https://forgejo.notusmi.com/foundry/foundry-stocks.git .
+    when: "{{ _copier_operation == 'copy' }}"
   # Spec-Driven Development scaffold. spec-kit init lays .specify/ (ps scripts +
   # core templates) and the claude speckit-* skills. NOTE: spec-kit no longer
   # git-inits (git is opt-in since 0.10.0) — the `git init -q` above is load-bearing.
-  # `specify` must be on PATH. Runs BEFORE furnace ignite so the surface's
-  # speckit-plan override skill (poured next) wins as last writer.
+  # `specify` must be on PATH. Runs AFTER the override template above: it keeps the
+  # five `.specify/` override files it finds and rewrites `speckit-plan/SKILL.md` —
+  # from core or from the override, depending on state the strike does not control
+  # (both measured on 0.12.18) — which is why the re-lay task follows.
   - command: specify init --here --force --integration claude --script ps --ignore-agent-tools
     when: "{{ _copier_operation == 'copy' }}"
   # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
@@ -493,16 +507,24 @@ _tasks:
       bash -c 'out="$(specify extension list)" || exit 1;
       if echo "$out" | grep -q agent-context; then specify extension disable agent-context; fi'
     when: "{{ _copier_operation == 'copy' }}"
+  # Re-lay the override plan skill. `specify init` just rewrote
+  # `.claude/skills/speckit-plan/SKILL.md`; the override template lists it under
+  # `_skip_if_exists`, and skip beats `--overwrite` in copier's conflict resolution,
+  # so a second copy cannot replace it while it exists — remove it, and `recopy`
+  # recreates the absent skip file from the recorded template version. `recopy`,
+  # never `update`: `.specify/` and `.claude/` are gitignored, and copier's update
+  # replays an index-based diff that deletes what it cannot see (measured).
+  - command: rm -f .claude/skills/speckit-plan/SKILL.md && uvx --from copier==9.17.2 copier recopy --defaults --overwrite -a .copier-answers.speckit.yml
+    when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
-  # code-repo-sdd = code-repo + the speckit surface (.specify/ overrides + the
-  # speckit-plan command override + the forge-feature workflow). Must run AFTER
-  # `specify init` so the override skill overwrites spec-kit's core one.
+  # code-repo-sdd = code-repo + the SDD skills; the spec-kit override set is the
+  # copier template above, not this kit's (The Copier Turn C1). Runs after
+  # `specify init` so the poured skills, rules and hooks land over the scaffold.
   # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
   # whole stamp (copier task semantics) — intentional: no half-governed repo.
   # --hammer: this task is copy-only (strike), so the workdir is a born-fresh
-  # copier+spec-kit scaffold with no real local edits to protect; ignite is the
-  # designed last writer over it (it overwrites spec-kit's core speckit-plan skill),
-  # so override stoke's clobber guard. The guard still protects an existing star on
+  # copier+spec-kit scaffold with no real local edits to protect, so override
+  # stoke's clobber guard. The guard still protects an existing star on
   # anneal/update, which re-pours governance a different way (not via this copy-task).
   # The kit rides `mcp` alone (Flame C6, decoupled from the retired
   # `decentralized`): an mcp star is tofu-managed from the foundry core, so
@@ -515,6 +537,10 @@ _tasks:
   # copier needs no docker or Forgejo creds to stamp a star.
   # Verify the plan-command override resolves as the project-tier winner.
   - command: specify preset resolve speckit.plan
+    when: "{{ _copier_operation == 'copy' }}"
+  # `preset resolve` reports the project override even when the RENDERED skill is
+  # spec-kit's core one (measured 0.12.18) — check the file that actually runs.
+  - command: grep -q 'authoritative design substrate' .claude/skills/speckit-plan/SKILL.md
     when: "{{ _copier_operation == 'copy' }}"
 
 # ONE-OFF SWEEP for v0.20.2: carry the fixed release recipe to stars already born.
