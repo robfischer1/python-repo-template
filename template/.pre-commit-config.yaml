@@ -107,18 +107,57 @@ repos:
   # the same interpreter+deps CI uses (uv sync --all-extras), so a green pre-push
   # means a green CI. Type/test tools are project dev-deps (always present via uv
   # run); opengrep is a system binary, so it degrades to a notice when absent.
+  #
+  # EVERY `uv run` BELOW IS --frozen, and that is not decoration. A bare
+  # `uv run` performs an implicit lock-and-sync: it RESOLVES, against whatever
+  # index the invoking shell has, and REWRITES uv.lock in place. A hook that
+  # exists to check the tree must never redefine it.
+  #
+  # MEASURED on narcissus 2026-09-08, nothing else running:
+  #
+  #     UV_INDEX_URL=<nexus> uv lock          -> 817 nexus refs in uv.lock
+  #     uv run --all-extras python -c "pass"  -> 0 nexus refs, 106 upstream
+  #
+  # One `uv run` doing nothing reverted a whole lockfile to upstream PyPI,
+  # because a dev shell sets no UV_INDEX_URL. It surfaced as pip-audit
+  # REFUSING a push with "files were modified by this hook" while reporting no
+  # vulnerabilities — the file it modified was uv.lock. That makes the hooks a
+  # fourth lock-writing surface after Renovate, workstations and CI, and the
+  # only one that fires on every push (python-repo-template#7413; it blocked
+  # the Nexus migration, foundry-stocks#7311).
+  #
+  # --frozen, NOT --locked, AND THE REASON IS THE WHOLE POINT OF THIS SEAM.
+  # --locked was written here first, on the argument that these hooks claim CI
+  # parity, CI runs `uv sync --locked`, and a hook that passes where CI fails
+  # is a false green. That argument is sound and the flag is still wrong,
+  # because --locked does not mean the same thing on both sides of the index
+  # seam: it re-resolves to decide whether the lock is current, so its answer
+  # depends on the caller's index. CI has one set; a dev shell does not.
+  #
+  # MEASURED, same worktree, against a Nexus-resolved lock:
+  #
+  #     uv run --locked --all-extras python -c "pass"   rc=2, "the lockfile
+  #                                                     needs to be updated"
+  #     uv run --frozen --all-extras python -c "pass"   rc=0, lock untouched
+  #
+  # So --locked would hard-block every push on a migrated star for anyone whose
+  # shell does not export UV_INDEX_URL — trading a silent rewrite for a
+  # universal wall. --frozen uses the lock exactly as committed: it cannot
+  # rewrite and cannot block. Freshness is CI's assertion to make, where the
+  # index is known; --locked here becomes safe only once every dev environment
+  # sets the index, which is the other half of #7413.
   - repo: local
     hooks:
       - id: forge-testkit-assertion-free
         name: assertion-free test bodies (forge-testkit)
-        entry: uv run --extra dev forge-testkit-lint assertion-free
+        entry: uv run --frozen --extra dev forge-testkit-lint assertion-free
         language: system
         files: ^tests/.*\.py$
         types: [python]
         stages: [pre-commit]
       - id: forge-testkit-fake-placement
         name: FakeX placement (forge-testkit)
-        entry: uv run --extra dev forge-testkit-lint fake-placement
+        entry: uv run --frozen --extra dev forge-testkit-lint fake-placement
         language: system
         files: \.py$
         types: [python]
@@ -136,7 +175,7 @@ repos:
       # finds no registered verbs and passes. Nothing to gate.
       - id: forge-testkit-schema-budget
         name: MCP verb schema budget (forge-testkit)
-        entry: uv run --extra dev forge-testkit-lint schema-budget
+        entry: uv run --frozen --extra dev forge-testkit-lint schema-budget
         language: system
         files: ^src/.*\.py$
         types: [python]
@@ -159,28 +198,28 @@ repos:
       # checker that was correctly reporting a real gap in its own environment.
       - id: mypy
         name: mypy (CI parity — pre-push)
-        entry: uv run --all-extras mypy src tests
+        entry: uv run --frozen --all-extras mypy src tests
         language: system
         stages: [pre-push]
         pass_filenames: false
         types: [python]
       - id: pyright
         name: pyright (CI parity — pre-push)
-        entry: uv run --all-extras pyright
+        entry: uv run --frozen --all-extras pyright
         language: system
         stages: [pre-push]
         pass_filenames: false
         types: [python]
       - id: pytest
         name: pytest (CI parity — pre-push)
-        entry: uv run --all-extras pytest -q
+        entry: uv run --frozen --all-extras pytest -q
         language: system
         stages: [pre-push]
         pass_filenames: false
         types: [python]
       - id: pip-audit
         name: pip-audit dependency vuln scan (CI parity — pre-push)
-        entry: uv run --with pip-audit pip-audit
+        entry: uv run --frozen --with pip-audit pip-audit
         language: system
         stages: [pre-push]
         pass_filenames: false
