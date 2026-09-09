@@ -470,7 +470,20 @@ _tasks:
   # never collides with this template's own. `--overwrite` so a headless strike
   # never prompts; `--defaults` because the template asks nothing. Latest
   # foundry-stocks tag by default — every merge there is tagged, so no pin here.
-  - command: uvx --from copier==9.17.2 copier copy --defaults --overwrite https://forgejo.notusmi.com/foundry/foundry-stocks.git .
+  # --trust IS LOAD-BEARING, NOT TIDINESS (measured, copier 9.17.2, 2026-09-09).
+  # foundry-stocks' root copier.yml now declares `_tasks` — it is the delivery
+  # vehicle for Continuous Accountability F4's pre-push gate hook, and a copier
+  # task is the only thing in the fleet that runs on a WORKSTATION checkout on
+  # both a strike and a re-lay (renovate's `copier update` runs in its own
+  # container, and `.git/hooks` never travels through a PR). Copier REFUSES an
+  # untrusted template that declares tasks outright — `Template uses potentially
+  # unsafe feature: tasks`, exit 4, NOTHING RENDERED — it does not skip the tasks
+  # and carry on. So without this flag the two calls below stop delivering the
+  # spec-kit override set entirely, and a strike dies here. Trust means the
+  # template's own tasks run: foundry-stocks is ours, on this Forgejo, which is
+  # the same trust renovate's copier manager already grants (renovate-config
+  # config.js, `copier: { ignoreScripts: false }`).
+  - command: uvx --from copier==9.17.2 copier copy --defaults --overwrite --trust https://forgejo.notusmi.com/foundry/foundry-stocks.git .
     when: "{{ _copier_operation == 'copy' }}"
   # Spec-Driven Development scaffold. spec-kit init lays .specify/ (ps scripts +
   # core templates) and the claude speckit-* skills. NOTE: spec-kit no longer
@@ -514,7 +527,7 @@ _tasks:
   # recreates the absent skip file from the recorded template version. `recopy`,
   # never `update`: `.specify/` and `.claude/` are gitignored, and copier's update
   # replays an index-based diff that deletes what it cannot see (measured).
-  - command: rm -f .claude/skills/speckit-plan/SKILL.md && uvx --from copier==9.17.2 copier recopy --defaults --overwrite -a .copier-answers.speckit.yml
+  - command: rm -f .claude/skills/speckit-plan/SKILL.md && uvx --from copier==9.17.2 copier recopy --defaults --overwrite --trust -a .copier-answers.speckit.yml
     when: "{{ _copier_operation == 'copy' }}"
   # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
   # code-repo-sdd = code-repo + the SDD skills; the spec-kit override set is the

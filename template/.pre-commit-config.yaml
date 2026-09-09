@@ -7,13 +7,25 @@
 # (opengrep) gets a notice, not a block.
 #
 # Install (copier _tasks does this on scaffold): `uv run pre-commit install`.
-# default_install_hook_types wires pre-commit + pre-push in that one call. The
+# default_install_hook_types wires pre-commit + post-commit in that one call
+# (pre-push is the CA gate's file; see the note above that key). The
 # .secrets.baseline is generated on first scaffold via `detect-secrets scan`.
 #
 # furnace owns .claude/ .specify/ .furnace/ (deployed by `furnace stoke`/`quench`).
 # Exclude that managed surface from every hook: hygiene fixers would mangle the
 # deployed content into drift, and detect-secrets trips on the manifest's hashes.
-default_install_hook_types: [pre-commit, pre-push, post-commit]
+# NO pre-push HERE, DELIBERATELY (Continuous Accountability F4). `.git/hooks/
+# pre-push` belongs to the CA gate now: it is written from the declared
+# foundry-tools pin by foundry-stocks' copier task, and it CHAINS this file's
+# pre-push stage itself (`pre-commit hook-impl --hook-type=pre-push`, the same
+# flags and argv and stdin pre-commit's own generated hook uses) before it dials
+# the engine — so not one check below is lost, and a red one still reds the push
+# without paying for an engine round trip. Listing pre-push here would only make
+# `pre-commit install` overwrite the gate with its own hook. The `stages:
+# [pre-push]` markers below are UNTOUCHED and still authoritative: that key
+# decides which hooks the pre-push stage runs, `default_install_hook_types`
+# decides only which hook FILES `install` writes.
+default_install_hook_types: [pre-commit, post-commit]
 exclude: '^\.(claude|specify|furnace)/|(^|/)(vendor|node_modules)/|\.melt$'
 repos:
 # HOOK REPOS COME FROM OUR MIRROR, not github. pre-commit CLONES each `repo:`,
