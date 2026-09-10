@@ -248,19 +248,26 @@ addopts = "--cov={{ package_name }} --cov-report=term-missing"
 source = ["src"]
 branch = true
 
-# The stellar_core SDK lives on the Forgejo PyPI. The base image bakes it in, so
-# the Docker build resolves it offline; this index is for local dev + lock gen.
+# The stellar_core SDK lives on the fleet's own PyPI — Nexus `pypi-hosted`
+# since 2026-09-10 (infra#351); it was Forgejo's, which is being sunset. The
+# base image bakes the SDK in, so the Docker build resolves it offline; this
+# index is for local dev + lock gen.
+#
+# NOT `pypi-group`, deliberately. Nexus also carries a group merging
+# pypi-hosted with the pypi.org proxy, and a merged index would reintroduce the
+# exact failure the pin below exists to prevent — a public version of one of our
+# names outranking ours. The hosted repo is exactly the set of our own names.
 [[tool.uv.index]]
-name = "forgejo"
-url = "https://forgejo.notusmi.com/api/packages/rob/pypi/simple/"
+name = "nexus-hosted"
+url = "https://nexus.notusmi.com/repository/pypi-hosted/simple/"
 
 [tool.uv.sources]
-stellar-core = { index = "forgejo" }
-# forge-testkit is published to the Forgejo PyPI only. Without this pin uv falls
+stellar-core = { index = "nexus-hosted" }
+# forge-testkit is published to the fleet's own PyPI only. Without this pin uv falls
 # through to the default index, where the name is unclaimed — the same class of
 # failure that resolved internal `pontus` to a public Flask/S3 package of the
 # same name. Index pins are per-project and are NOT inherited from a dependency.
-forge-testkit = { index = "forgejo" }
+forge-testkit = { index = "nexus-hosted" }
 {%- if core_backed %}
 # Core is the public git pin (the #1300 standard); the base image bakes the
 # private schema. For local co-dev against an adjacent checkout, override with
