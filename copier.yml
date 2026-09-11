@@ -4,8 +4,8 @@
 # `mcp = false` -> a plain Python library / CLI: the same QA/CI/lint spine,
 #                 no service machinery. Realizes the service-repo standard:
 # furnace/docs/service-repo-standard.md. copier lays the pure-code body; the
-# final `_task` runs `furnace ignite` to pour the governance kit (the `code-repo`
-# furnace kit) — copier owns repo creation, furnace owns the `.claude/` layer.
+# final `_task` composes the governance kit (`code-repo-sdd`) with furnace and
+# lays it with gavel — copier owns repo creation, the kit owns `.claude/`.
 
 _subdirectory: template
 _min_copier_version: "9.0.0"
@@ -256,7 +256,7 @@ critical_modules:
 # (the tofu ROOTS live in rob/infra now, so this template scaffolds NO infra/),
 # but every mcp star's build/deploy IS tofu-managed from the foundry core (the F5
 # managed-CI plane), so furnace pours only the PR gates (code-repo-sdd-
-# decentralized). That kit choice now rides `mcp` alone (see the ignite _task).
+# decentralized). That kit choice now rides `mcp` alone (see the last _task).
 
 author_name:
   type: str
@@ -495,7 +495,7 @@ _tasks:
   - command: specify init --here --force --integration claude --script ps --ignore-agent-tools
     when: "{{ _copier_operation == 'copy' }}"
   # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
-  # fights furnace's CLAUDE.md @AGENTS.md shim, which furnace repours every ignite.
+  # fights furnace's CLAUDE.md @AGENTS.md shim, which every order re-lays.
   # Some spec-kit builds ship the extension already-uninstalled (`disable` then
   # errors "not installed" and would fail the whole strike); a blanket `|| true`
   # used to swallow THAT case, but it just as quietly swallowed a real `disable`
@@ -529,21 +529,29 @@ _tasks:
   # replays an index-based diff that deletes what it cannot see (measured).
   - command: rm -f .claude/skills/speckit-plan/SKILL.md && uvx --from copier==9.17.2 copier recopy --defaults --overwrite --trust -a .copier-answers.speckit.yml
     when: "{{ _copier_operation == 'copy' }}"
-  # Pour the furnace governance kit (the .claude/ AI layer) as the final step.
-  # code-repo-sdd = code-repo + the SDD skills; the spec-kit override set is the
-  # copier template above, not this kit's (The Copier Turn C1). Runs after
-  # `specify init` so the poured skills, rules and hooks land over the scaffold.
-  # Needs `furnace` on PATH + $FURNACE_SOURCE set. A failure here rolls back the
-  # whole stamp (copier task semantics) — intentional: no half-governed repo.
-  # --hammer: this task is copy-only (strike), so the workdir is a born-fresh
-  # copier+spec-kit scaffold with no real local edits to protect, so override
-  # stoke's clobber guard. The guard still protects an existing star on
-  # anneal/update, which re-pours governance a different way (not via this copy-task).
-  # The kit rides `mcp` alone (Flame C6, decoupled from the retired
-  # `decentralized`): an mcp star is tofu-managed from the foundry core, so
-  # furnace pours only the PR gates (code-repo-sdd); a plain
-  # library takes the base code-repo-sdd.
-  - command: furnace ignite . --hammer --kit {{ 'code-repo-sdd' if mcp else 'code-repo-sdd' }}
+  # Lay the governance kit (the .claude/ AI layer) LAST, in the post-cut shape:
+  # furnace COMPOSES, gavel LAYS (The Role Cut R2, 2026-09-11). This used to be
+  # one verb — `furnace ignite . --hammer --kit K`, pin + compose + lay in one
+  # process — and that verb is the duplicate the cut retired: the applier is its
+  # own binary now and the composer no longer touches a working tree. Three
+  # steps, each the binary that owns it:
+  #   pin   — `.furnace/pin.toml` is TRACKED config the fleet walk (`temper`)
+  #           reads, not a lay, so it stays furnace's;
+  #   die   — the kit's standalone tree + its disposition column, rendered
+  #           into a scratch dir (never over the live tree);
+  #   order — gavel lays the die, writes the deploy manifest and the base
+  #           column exactly as the pour did, and receipts what it flattens.
+  # Runs after `specify init` so the laid skills, rules and hooks land over the
+  # scaffold. --hammer: a born-fresh scaffold has no local edits to protect.
+  # Needs `furnace` AND `gavel` on PATH + $FURNACE_SOURCE set; a failure rolls
+  # back the whole stamp (copier task semantics) — no half-governed repo.
+  # `|| exit 1`, never a swallow: the scratch dir is removed on BOTH paths and
+  # the lay's own status is what the task answers with.
+  - command: >-
+      bash -c 'kit="code-repo-sdd"; furnace pin . --kit "$kit" || exit 1;
+      die="$(mktemp -d)" || exit 1;
+      furnace die "$kit" --dest "$die" && gavel order . --from "$die" --hammer; rc=$?;
+      rm -rf "$die"; exit $rc'
     when: "{{ _copier_operation == 'copy' }}"
   # NOTE: a star no longer scaffolds `/infra` (Flame C4) — the tofu roots live in
   # rob/infra, which harvests the sovereign shape from the star's {star}.tfvars.
