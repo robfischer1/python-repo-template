@@ -90,8 +90,6 @@ template/                      # _subdirectory — everything below is rendered 
   README.md.jinja / CONTRIBUTING.md.jinja / CHANGELOG.md.jinja / LICENSE.jinja
   cosign.pub                    # constellation public key (unconditional)
   {% if core_backed %}cosign.pub{% endif %}   # same key, gated copy (see CLAUDE-INIT.md)
-  .forgejo/workflows/{ci.yml, admit.yml, {% if mcp %}deploy.yml{% endif %}.jinja}
-  .forgejo/versions.env         # pinned tool versions shared by admit.yml + deploy.yml
   rules/sast/dataflow.yml       # opengrep taint rules
   src/{{package_name}}/
     __init__.py.jinja  settings.py.jinja  health.py.jinja

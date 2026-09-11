@@ -99,23 +99,14 @@ Inside `template/`:
   private `{service}-net`), interim-shared (host port + shared corpus
   `DATABASE_URL`), or stateless (no DB block at all). All three join the
   `pantheon` network for the Kafka heartbeat.
-- **`.forgejo/workflows/`**:
-  - `ci.yml` — PR gate (`on: pull_request`): `uv sync`, pre-commit,
-    mypy, pyright, pytest, `pip-audit`, opengrep SAST against
-    `rules/sast/`. Runs on the `nas01` self-hosted runner, no docker socket.
-  - `admit.yml` — the constellation admission gate: cosign-verify the
-    star's image + syft SBOM, cosign-verify + pull the signed
-    `ouranos:policy-vN` authority and the `telescope:epoch-N` fleet roster,
-    build the admission input via `stellar_core.build_admission_input`, then
-    `docker run` the policy eval image — exit code is the verdict
-    (fail-closed on error). Needs `/var/run/docker.sock`.
-  - `{% if mcp %}deploy.yml{% endif %}.jinja` — build/scan(Trivy)/push/sign
-    (cosign)/attest(SBOM to Dependency-Track) on push to `main`. Only
-    materializes for MCP stars; no `docker compose up` — the container
-    *lifecycle* is Tofu/Nereus-managed, CI only ships the image.
-  - `versions.env` — single-sourced tool-version pins (`COSIGN_VERSION`
-    etc.) shared by `admit.yml` (verifies) and `deploy.yml` (signs) so they
-    can never drift apart.
+- **No `.forgejo/` at all, and that is the current shape rather than an
+  omission.** This template used to pour `ci.yml`, `admit.yml`, a gated
+  `deploy.yml` and a `versions.env` pinning the tool versions the last two
+  shared. All four were caller stubs for the Forgejo act-runner, which
+  retired — the gate is the door's runner now. A stamp gets its PR gate, its
+  admission check and its image build from the door's lanes, which are
+  declared centrally and always current, so there is nothing per-repo left to
+  pour and nothing per-repo left to drift.
 - **`rules/sast/dataflow.yml`** — vendored opengrep taint rules (SSRF,
   SQLi-shaped), deliberately non-overlapping with ruff's `S` (bandit) rules:
   ruff flags dangerous *sinks*, this flags untrusted *source → sink* flows.
@@ -157,7 +148,7 @@ Inside a *rendered* repo, the entry points are:
 
 The template repo has no build/test of its own. To validate a change to
 the template, render it and run the *generated* repo's checks (commands
-sourced from `pyproject.toml.jinja` / `template/.forgejo/workflows/ci.yml`
+sourced from `pyproject.toml.jinja` and the door's gate atoms
 — do not execute without Rob's go-ahead):
 
 ```bash
