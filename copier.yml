@@ -10,6 +10,15 @@
 _subdirectory: template
 _min_copier_version: "9.0.0"
 
+# dagger.json IS COPIER'S, create and update, like .pre-commit-config.yaml — it
+# is deliberately NOT in `_skip_if_exists`. It declares foundry-tools as the
+# repo's toolchain (`dagger check` / `dagger call foundry-tools …` bind THIS
+# tree, the documented workflow, instead of every caller spelling
+# `-m git.notusmi.com/rob/foundry-tools@<sha> --source=.`), and it carries NO
+# pin on purpose: the door resolves foundry-tools at main for every dispatch
+# (ourea #109) and an unpinned toolchain resolves the same way, measured
+# 2026-09-13 against the cluster engine. A consumer's dagger.json declares no
+# sdk, which is how hephaestus's tree probe tells it from a module.
 # `_skip_if_exists` = every rendered path EXCEPT the two seams (pyproject.toml +
 # .gitignore). It scopes copier to what copier is good at: create-if-absent for
 # the star-owned stubs (README/docs/source) on birth, and a 3-way merge for the
