@@ -5,8 +5,9 @@ container-ready Forge Python project — either a FastMCP constellation service
 or a plain library/CLI, your choice at scaffold time. Realizes the Forge
 service-repo standard (`furnace/docs/service-repo-standard.md`). This repo is
 the template only — it generates other repos, it does not run as a service
-itself. Pure code; the AI/governance layer (`.claude/`, `AGENTS.md`) is poured
-into the generated repo separately by `furnace ignite` (decoupled by design).
+itself. Pure code; the AI/governance layer (`.claude/`, `AGENTS.md`) is composed
+by furnace and laid into the generated repo separately by gavel (decoupled by
+design).
 
 ## Use
 
@@ -19,9 +20,11 @@ copier copy /path/to/python-repo-template my-new-service
 Copier asks a set of questions (see below), then runs `_tasks`: `git init`,
 wire the remotes (`origin` = the Ourea door, `forgejo` fetch-only, `github` the
 push mirror — see [Remotes](#remotes)), `uv sync`, generate `.secrets.baseline`,
-install pre-commit hooks, run `specify init` (spec-kit scaffold), and finally
-`furnace ignite . --kit code-repo-sdd` to pour the governance layer. A failure
-in any task rolls back the whole stamp — there is no half-scaffolded repo.
+install pre-commit hooks, run `specify init` (spec-kit scaffold), lay the
+governance layer (`furnace die` composes the `code-repo-sdd` kit, `gavel order`
+lays it), and finally merge this template's ignore rules into `.gitignore` (see
+[the managed block](#the-gitignore-managed-block)). A failure in any task rolls
+back the whole stamp — there is no half-scaffolded repo.
 
 ### Update an existing generated repo
 
@@ -33,6 +36,38 @@ copier update      # adds new template files; only pyproject.toml is merged
 `uv lock` re-runs on every `update` (not just `copy`) so a template change to
 `pyproject.toml` never leaves a stale `uv.lock` that the admission gate's
 `uv sync --locked` would reject.
+
+### The `.gitignore` managed block
+
+A cast-born star's `.gitignore` has two authors, and the file shows the seam:
+
+```
+*.log                 <- cast's conform arm seeds these four at birth
+.env
+.env.*
+AGENTS.md
+
+# >>> python-repo-template — managed block, edits here are overwritten >>>
+...                   <- this template's rules, delivered by a copier task
+# <<< python-repo-template <<<
+```
+
+Everything **outside** the markers belongs to the repo — the conform seed, and
+anything you add. Nothing reads or moves it. Everything **inside** is this
+template's and is replaced wholesale on each delivery, so put your own rules
+above the block, not in it.
+
+Why a task rather than a plain rendered file: conform seeds `.gitignore` before
+the first render, so `_skip_if_exists` makes copier skip it and the template's
+rules never land — measured on glaucus and proteus, which each staged about
+twenty `.specify/` files on their first commit (hephaestus#8150). Removing the
+skip is not the fix either: copier then hits a conflict on the seeded file and
+dies with *"Interactive session required"*. The block lets both writers
+compose. Ported from go-repo-template#7.
+
+**Changing `template/.gitignore`?** The task carries it to new stars only. Stars
+already born need a bumped `_migrations` entry in `copier.yml` — copy the
+`v0.32.0` one and change its version.
 
 ## Questions asked
 

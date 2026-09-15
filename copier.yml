@@ -19,10 +19,14 @@ _min_copier_version: "9.0.0"
 # (ourea #109) and an unpinned toolchain resolves the same way, measured
 # 2026-09-13 against the cluster engine. A consumer's dagger.json declares no
 # sdk, which is how hephaestus's tree probe tells it from a module.
-# `_skip_if_exists` = every rendered path EXCEPT the two seams (pyproject.toml +
-# .gitignore). It scopes copier to what copier is good at: create-if-absent for
-# the star-owned stubs (README/docs/source) on birth, and a 3-way merge for the
-# seams on update — nothing else. A star builds out its README and src after
+# `_skip_if_exists` = every rendered path EXCEPT pyproject.toml, the one merge
+# seam left, and the files copier owns outright (dagger.json and
+# .pre-commit-config.yaml, per the note above). This line used to name
+# .gitignore as a second seam while .gitignore sat in the list below —
+# corrected 2026-09-14, the same repair go-repo-template#7 made to its own
+# header. It scopes copier to what copier is good at: create-if-absent for the
+# star-owned stubs (README/docs/source) on birth, and a 3-way merge for the seam
+# on update — nothing else. A star builds out its README and src after
 # birth; a `copier update`/anneal must NOT 3-way-merge them (the fleet-wide
 # README conflict that failed the anneal arm closed). The foundry conformance
 # files (pre-commit, editorconfig, …) are skipped here so update never
@@ -106,6 +110,15 @@ _skip_if_exists:
   # records it fixing a CI outage. cliff.toml and justfile because they are
   # template-owned conformance like their neighbours here. LICENSES/** because a
   # licence text is star-owned once born, like LICENSE above it.
+  #
+  # .gitignore MUST STAY IN THIS LIST, even though the template's rules then
+  # never land through copier's file writer. Cast's conform arm seeds a
+  # four-line .gitignore at birth (*.log, .env, .env.*, AGENTS.md), so the file
+  # always exists before the first render. Take it out and `copier copy` hits a
+  # CONFLICT on the seed and dies non-interactively ("Interactive session
+  # required"); add --overwrite and the template clobbers the seed. Measured on
+  # go-repo-template 2026-09-11 (#7) — the conflict is copier's, not Go's. The
+  # rules reach a repo through the MERGE TASK at the end of `_tasks` instead.
   - .gitignore
   - cliff.toml
   - justfile
@@ -572,6 +585,47 @@ _tasks:
   # spec-kit's core one (measured 0.12.18) — check the file that actually runs.
   - command: grep -q 'authoritative design substrate' .claude/skills/speckit-plan/SKILL.md
     when: "{{ _copier_operation == 'copy' }}"
+  # THE .gitignore MERGE — go-repo-template#7, ported (hephaestus#8150). Runs
+  # LAST, after every other task has laid down the surfaces these rules are
+  # about (.specify/ from `specify init`, .claude/ from gavel).
+  #
+  # `.gitignore` has two writers and neither is wrong: conform's birth seed, and
+  # this template's rules. `_skip_if_exists` lets the seed win (see the note on
+  # the list above), so without this task a cast-born star never gets the rules
+  # — measured on glaucus and proteus, the first two stars born through cast,
+  # which each staged ~20 .specify files on their first commit.
+  #
+  # A managed block composes them. Everything OUTSIDE the markers is the repo's
+  # and is never read or moved; everything inside is this template's and is
+  # replaced wholesale, so a rules change reaches a star as a clean diff.
+  # `_copier_conf.src_path` is the template clone, so the block is always the
+  # rules this version ships — no second copy to drift.
+  #
+  # CHANGING template/.gitignore? This task carries it to NEW stars only. Born
+  # stars need a bumped `_migrations` entry — copy the v0.32.0 one at the bottom
+  # of this file and change its version.
+  - command: |
+      python3 - "{{ _copier_conf.src_path }}/template/.gitignore" <<'GITIGNORE_MERGE'
+      import pathlib, sys
+      OPEN = "# >>> python-repo-template — managed block, edits here are overwritten >>>"
+      CLOSE = "# <<< python-repo-template <<<"
+      rules = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").rstrip("\n")
+      block = f"{OPEN}\n{rules}\n{CLOSE}\n"
+      p = pathlib.Path(".gitignore")
+      cur = p.read_text(encoding="utf-8") if p.exists() else ""
+      if OPEN in cur and CLOSE in cur:
+          head, rest = cur.split(OPEN, 1)
+          _, tail = rest.split(CLOSE, 1)
+          new = head + block + tail.lstrip("\n")
+      else:
+          new = (cur.rstrip("\n") + "\n\n" if cur.strip() else "") + block
+      if new == cur:
+          print("copier: .gitignore managed block already current")
+          sys.exit(0)
+      p.write_text(new, encoding="utf-8")
+      print("copier: .gitignore <- template rules merged (managed block)")
+      GITIGNORE_MERGE
+    when: "{{ _copier_operation == 'copy' }}"
 
 # ONE-OFF SWEEP for v0.20.2: carry the fixed release recipe to stars already born.
 #
@@ -691,3 +745,35 @@ _migrations:
       print("copier: the release recipe matches no shape this template shipped -")
       print("copier: LEAVING IT ALONE. Reconcile by hand against v0.20.2.")
       SWEEP
+
+  # CARRY THE .gitignore RULES TO STARS ALREADY BORN — go-repo-template#7,
+  # ported. The task above fires on `copy` only, and `.gitignore` is in
+  # `_skip_if_exists`, so `copier update` will not deliver the rules either; a
+  # versioned `after`-stage migration is this file's mechanism for a skipped
+  # path, same as the justfile sweeps above. Same payload as the copy task,
+  # deliberately — one merge, two entry points.
+  - version: v0.32.0
+    when: "{{ _stage == 'after' }}"
+    command: |
+      python3 - "{{ _copier_conf.src_path }}/template/.gitignore" <<'GITIGNORE_MERGE'
+      import pathlib, sys
+      OPEN = "# >>> python-repo-template — managed block, edits here are overwritten >>>"
+      CLOSE = "# <<< python-repo-template <<<"
+      rules = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").rstrip("\n")
+      block = f"{OPEN}\n{rules}\n{CLOSE}\n"
+      p = pathlib.Path(".gitignore")
+      cur = p.read_text(encoding="utf-8") if p.exists() else ""
+      if OPEN in cur and CLOSE in cur:
+          head, rest = cur.split(OPEN, 1)
+          _, tail = rest.split(CLOSE, 1)
+          new = head + block + tail.lstrip("\n")
+      else:
+          new = (cur.rstrip("\n") + "\n\n" if cur.strip() else "") + block
+      if new == cur:
+          print("copier: .gitignore managed block already current")
+          sys.exit(0)
+      p.write_text(new, encoding="utf-8")
+      print("copier: .gitignore <- template rules merged (managed block)")
+      print("copier: .specify/ or .claude/ already TRACKED? a rule does not evict")
+      print("copier: what is in the index - `git rm -r --cached .specify .claude`")
+      GITIGNORE_MERGE
