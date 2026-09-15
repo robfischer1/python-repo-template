@@ -232,7 +232,7 @@ sovereign_database:
   help: "Constellation star owns its own sovereign database (chaos pattern)?"
   default: false
   # Independent of core_backed: a standalone (non-core-backed) star can still own
-  # a sovereign DB (e.g. terpsichore — pontus-free, but holds terpsichore-db).
+  # a sovereign DB (e.g. terpsichore — redpanda-free, but holds terpsichore-db).
   when: "{{ mcp }}"
 
 db_kind:

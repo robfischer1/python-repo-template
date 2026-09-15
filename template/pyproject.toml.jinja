@@ -63,7 +63,7 @@ dev = [
 ]
 {%- if mcp %}
 # Heartbeat publisher (the `kafka` extra): confluent-kafka backs the Producer
-# that ships {live,ready,metrics} to Pontus. Optional — a star without it just
+# that ships {live,ready,metrics} to redpanda. Optional — a star without it just
 # doesn't beat (the MCP server still serves). Image installs it via
 # `uv sync --extra kafka` (see the Dockerfile).
 kafka = ["confluent-kafka>=2.0"]

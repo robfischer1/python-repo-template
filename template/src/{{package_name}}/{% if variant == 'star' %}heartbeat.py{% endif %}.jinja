@@ -2,11 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Heartbeat publisher — emits {live, ready, metrics} to Pontus periodically.
+"""Heartbeat publisher — emits {live, ready, metrics} to redpanda periodically.
 
 The async-worker arm of the universal op-contract: a background thread publishes
 this star's :class:`stellar_core.HealthState` to the ``{star}._ops.heartbeat``
-topic on the Pontus broker (Redpanda) every interval, so Nyx and operators can
+topic on the redpanda broker every interval, so Nyx and operators can
 read the star's standing off the event backbone rather than only by dialing it.
 
 Wiring (the reference seam for the fleet):
@@ -70,7 +70,7 @@ def _kafka_publish(bootstrap: str) -> Callable[[str, dict[str, Any]], None]:
 def start_heartbeat(
     interval_s: float = DEFAULT_INTERVAL_S,
 ) -> threading.Thread | None:
-    """Start a daemon thread publishing this star's heartbeat to Pontus.
+    """Start a daemon thread publishing this star's heartbeat to redpanda.
 
     Returns the started thread, or ``None`` if the heartbeat could not start
     (the ``kafka`` extra is absent) — a missing heartbeat must never stop the

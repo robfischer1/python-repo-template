@@ -45,7 +45,7 @@ def main() -> None:
     """Run the MCP server over streamable-HTTP, binding host:port from settings.
 
     Also starts the op-contract heartbeat (a background daemon thread publishing
-    this star's {live, ready, metrics} to Pontus), so Nyx reads its standing off
+    this star's {live, ready, metrics} to redpanda), so Nyx reads its standing off
     the backbone. Degrades gracefully if the `kafka` extra is absent.
     """
     from {{ package_name }}.heartbeat import start_heartbeat
