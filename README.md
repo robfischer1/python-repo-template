@@ -95,7 +95,7 @@ already born need a bumped `_migrations` entry in `copier.yml` — copy the
 - PyPA `src/` layout, PEP 621 `pyproject.toml` (hatchling), single-sourced
   version from `__init__.py`
 - If `mcp`: a minimal FastMCP streamable-HTTP server (`server.py`, stateless,
-  config-via-env), a `ping` tool, an async heartbeat publisher to Pontus
+  config-via-env), a `ping` tool, an async heartbeat publisher to redpanda
   (`heartbeat.py`, optional `kafka` extra), a multi-stage non-root Dockerfile,
   `.dockerignore`, and a Compose stack (shape depends on `core_backed` /
   `sovereign_database`)

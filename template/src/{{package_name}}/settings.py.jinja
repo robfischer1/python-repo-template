@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # in-repo file left to default it for you). README's env table says the same.
     host: str = "127.0.0.1"
     port: int = {{ port }}
-    # Heartbeat → Pontus: the Redpanda broker the {live,ready,metrics} beat ships
+    # Heartbeat → redpanda: the Redpanda broker the {live,ready,metrics} beat ships
     # to (overridden to the in-network listener at deploy, e.g. chronos-redpanda:29092)
     # and the per-star topic. confluent-kafka is the optional `kafka` extra.
     kafka_bootstrap: str = "localhost:9092"

@@ -65,7 +65,7 @@ Inside `template/`:
   - `health.py.jinja` — the born-with `{live, ready, metrics}` op-contract
     from the `stellar_core` SDK. `McpOpsAdapter` when `mcp`, else
     `HttpOpsAdapter` (z-pages). Stub health, meant to be wired to real probes.
-  - `heartbeat.py.jinja` — daemon thread publishing `HealthState` to Pontus
+  - `heartbeat.py.jinja` — daemon thread publishing `HealthState` to redpanda
     (Redpanda) via `AsyncHeartbeatPublisher` every 30s. `confluent_kafka` is
     lazy-imported (optional `kafka` extra); missing extra/broker degrades to
     "no heartbeat," never crashes the server.
