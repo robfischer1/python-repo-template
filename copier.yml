@@ -601,6 +601,13 @@ _tasks:
   # `_copier_conf.src_path` is the template clone, so the block is always the
   # rules this version ships — no second copy to drift.
   #
+  # A SEEDLESS copy (a plain `copier copy` with no conform seed) renders
+  # template/.gitignore itself, because `_skip_if_exists` only skips a file that
+  # is already there. The whole file is then this template's rules, so it
+  # becomes the block instead of gaining a second copy of itself. A file already
+  # doubled that way loses the copy above its block on the next run
+  # (go-repo-template#9311). Cast always seeds, so no cast-born star was hit.
+  #
   # CHANGING template/.gitignore? This task carries it to NEW stars only. Born
   # stars need a bumped `_migrations` entry — copy the v0.32.0 one at the bottom
   # of this file and change its version.
@@ -616,7 +623,11 @@ _tasks:
       if OPEN in cur and CLOSE in cur:
           head, rest = cur.split(OPEN, 1)
           _, tail = rest.split(CLOSE, 1)
+          if head.strip("\n") == rules:
+              head = ""
           new = head + block + tail.lstrip("\n")
+      elif cur.strip("\n") == rules:
+          new = block
       else:
           new = (cur.rstrip("\n") + "\n\n" if cur.strip() else "") + block
       if new == cur:
@@ -766,7 +777,11 @@ _migrations:
       if OPEN in cur and CLOSE in cur:
           head, rest = cur.split(OPEN, 1)
           _, tail = rest.split(CLOSE, 1)
+          if head.strip("\n") == rules:
+              head = ""
           new = head + block + tail.lstrip("\n")
+      elif cur.strip("\n") == rules:
+          new = block
       else:
           new = (cur.rstrip("\n") + "\n\n" if cur.strip() else "") + block
       if new == cur:
