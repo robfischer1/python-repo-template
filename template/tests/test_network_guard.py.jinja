@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: {{ year }} {{ author_name }}
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""The no-network guard is proven on every pour, not assumed.
+
+A guard nobody exercises is a guard that can silently stop working. These
+tests assert the autouse fixture's behaviour directly rather than trusting
+that importing ``conftest`` did something. Three claims, three legs:
+
+1. a real outbound dial (AF_INET) is REFUSED;
+2. AF_INET6 is refused on the same footing, so IPv6 is not a way around it;
+3. a local AF_UNIX socketpair — asyncio's event-loop self-pipe — still works,
+   so the guard does not false-fail a test that merely spins a loop.
+
+The opt-out leg is proven WITHOUT dialling anything: this file stays offline.
+"""
+
+from __future__ import annotations
+
+import socket
+
+import pytest
+from forge_testkit.config import NetworkBlocked
+
+
+def test_outbound_ipv4_is_refused() -> None:
+    """The guard raises before a socket object exists at all."""
+    with pytest.raises(NetworkBlocked, match="no_network"):
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+
+def test_outbound_ipv6_is_refused() -> None:
+    """IPv6 is blocked too — not an escape hatch."""
+    with pytest.raises(NetworkBlocked, match="no_network"):
+        socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+
+
+def test_a_real_dial_cannot_be_reached() -> None:
+    """``create_connection`` never gets far enough to emit a SYN.
+
+    An IP LITERAL, deliberately: ``no_network()`` patches ``socket.socket``,
+    not ``getaddrinfo``, so a NAME would resolve DNS first and fail
+    off-cluster with ``gaierror`` for the wrong reason. Against a literal
+    there is no lookup, so the refusal is the guard's wherever this runs. The
+    port is the fleet broker's — the target the incident published onto.
+    """
+    with pytest.raises(NetworkBlocked, match="no_network"):
+        socket.create_connection(("10.255.255.1", 29092), timeout=0.01)
+
+
+def test_local_socketpair_still_works() -> None:
+    """AF_UNIX passes through: an event loop's self-pipe is not a network dial."""
+    left, right = socket.socketpair()
+    with left, right:
+        left.sendall(b"local")
+        assert right.recv(5) == b"local"
+
+
+@pytest.mark.allow_network
+def test_the_marker_opts_a_test_out() -> None:
+    """The escape hatch works, proven by construction rather than by dialling.
+
+    Constructing an AF_INET socket is what the guard refuses; here it must
+    succeed. Closed without ``connect()``, so this test is still offline.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        assert sock.family is socket.AF_INET
