@@ -242,7 +242,16 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 # Coverage is measured every run; `term-missing` lists untested lines. Ratchet a
 # floor up as real tests land by appending to addopts, e.g. `--cov-fail-under=70`.
-addopts = "--cov={{ package_name }} --cov-report=term-missing"
+# `--strict-markers` makes the registration below load-bearing: a misspelt
+# `@pytest.mark.allow_netwrok` is an error, not a silently unguarded test.
+addopts = "--cov={{ package_name }} --cov-report=term-missing --strict-markers"
+# The per-test opt-out for the autouse no-network guard in tests/conftest.py
+# (the fail-loud die, foundry-stocks templates/fail-loud-die.md). Every test
+# is offline unless it carries this marker; tests/test_network_guard.py proves
+# the guard on every pour.
+markers = [
+    "allow_network: this test is permitted to open real sockets",
+]
 
 [tool.coverage.run]
 source = ["src"]

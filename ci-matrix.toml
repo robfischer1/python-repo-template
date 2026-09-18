@@ -30,6 +30,11 @@ present = [
   "pyproject.toml",
   ".dockerignore",                 # containerised: build context matters
   "tests/test_smoke.py",
+  # The no-network guard is born with the star, not adopted after an
+  # incident: the autouse fixture and the tests that prove it. Unconditional
+  # (no copier answer gates them), so the library case pins them too.
+  "tests/conftest.py",
+  "tests/test_network_guard.py",
 ]
 absent = [".forgejo", "src/gate_py/__main__.py"]
 
@@ -41,7 +46,12 @@ absent = [".forgejo", "src/gate_py/__main__.py"]
 # went with the workflows.
 name = "library"
 answers = { project_name = "Gate Py", variant = "library", mcp = false }
-present = ["pyproject.toml", "src/gate_py/__init__.py"]
+present = [
+  "pyproject.toml",
+  "src/gate_py/__init__.py",
+  "tests/conftest.py",              # the guard is not a star-only thing
+  "tests/test_network_guard.py",
+]
 absent = [
   ".forgejo",
   # A plain library is not deployed, so nothing container-shaped may render. If
