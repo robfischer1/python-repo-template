@@ -273,6 +273,10 @@ branch = true
 [[tool.uv.index]]
 name = "fleet"
 url = "https://packages.notusmi.com/pypi/fleet/prod/+simple/"
+# explicit: consulted only for the packages [tool.uv.sources] pins to it. Without
+# this uv asks the fleet index first for EVERY package and devpi logs each of the
+# ~30 misses per sync/pip-audit at ERROR (fleet Loki, 2026-09-19).
+explicit = true
 
 [tool.uv.sources]
 stellar-core = { index = "fleet" }
