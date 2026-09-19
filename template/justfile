@@ -1,29 +1,33 @@
-# justfile — Python star local gate.
+# justfile — Python star recipes.
 #
-# `check` is the fast edit loop. `gate` is the full mirror of
-# .forgejo/workflows/ci.yml — run it before you push and CI holds no surprises.
-# `just` with no argument lists everything.
+# `just check` is the commit stage and `just gate` the push stage, both on the
+# cluster's Dagger engine — the same two calls the hooks make and the door runs,
+# so a tree that passes here passes there. `just` with no argument lists
+# everything else: the local conveniences (sync, types, test, image) a session
+# reaches for between commits.
 #
 # Poured verbatim by copier (no .jinja suffix): just's {{ }} interpolation and
 # Jinja's {{ }} are the same delimiters, so a .jinja suffix here would have Jinja
-# eat every recipe parameter at pour time.
+# eat every recipe parameter at pour time. Copier lays it once (_skip_if_exists)
+# and never updates it; a change every star must take rides a `_migrations`
+# entry in copier.yml.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 star := file_name(justfile_directory())
 
+# The two stages a commit and a push must pass (CA F15): `just check` at
+# commit, `just gate` at push. Both recipes live in stages.just, rendered by
+# the spec-kit override template (foundry-stocks speckit/, laid beside this
+# file and re-laid at every session start); the hooks under hooks/ call them.
+# THIS FILE DEFINES NO `check` OR `gate` OF ITS OWN — a local recipe by either
+# name would shadow the engine's, and v0.34.0 shipped one that made `lint:
+# check` a cycle just refused the whole file over.
+import 'stages.just'
+
 # List available recipes
 default:
     @just --list
-
-# Fast loop: lint, types, test. Run this constantly.
-#
-# Does NOT re-sync — `uv sync` on every invocation is the difference between a
-# sub-second loop and a multi-second one. Run `just sync` when the lock changes.
-check: lint types test
-
-# Everything ci.yml runs, from a clean locked environment. Run before pushing.
-gate: sync lint types test vuln sast
 
 # Resolve the environment from the lock, exactly as CI does.
 #
