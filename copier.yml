@@ -10,7 +10,7 @@
 _subdirectory: template
 _min_copier_version: "9.0.0"
 
-# dagger.json IS COPIER'S, create and update, like .pre-commit-config.yaml — it
+# dagger.json IS COPIER'S, create and update — it
 # is deliberately NOT in `_skip_if_exists`. It declares foundry-tools as the
 # repo's toolchain (`dagger check` / `dagger call foundry-tools …` bind THIS
 # tree, the documented workflow, instead of every caller spelling
@@ -20,8 +20,8 @@ _min_copier_version: "9.0.0"
 # 2026-09-13 against the cluster engine. A consumer's dagger.json declares no
 # sdk, which is how hephaestus's tree probe tells it from a module.
 # `_skip_if_exists` = every rendered path EXCEPT pyproject.toml, the one merge
-# seam left, and the files copier owns outright (dagger.json and
-# .pre-commit-config.yaml, per the note above). This line used to name
+# seam left, and the file copier owns outright (dagger.json, per the note
+# above). This line used to name
 # .gitignore as a second seam while .gitignore sat in the list below —
 # corrected 2026-09-14, the same repair go-repo-template#7 made to its own
 # header. It scopes copier to what copier is good at: create-if-absent for the
@@ -29,7 +29,7 @@ _min_copier_version: "9.0.0"
 # on update — nothing else. A star builds out its README and src after
 # birth; a `copier update`/anneal must NOT 3-way-merge them (the fleet-wide
 # README conflict that failed the anneal arm closed). The foundry conformance
-# files (pre-commit, editorconfig, …) are skipped here so update never
+# files (editorconfig, …) are skipped here so update never
 # conflicts them; anneal CLOBBERS them from a fresh render (Flame C2) — a
 # conformance surface is enforced, not merged. Paths are RENDERED destination
 # paths (template/ stripped by _subdirectory, .jinja stripped). Kept in sync
@@ -127,15 +127,14 @@ _skip_if_exists:
   - .editorconfig
   - .python-version
   - .dockerignore
-  # .pre-commit-config.yaml is NOT here: copier OWNS it, create AND update.
-  # It sat in this list from 2026-07-23 (Flame C1, "copier owns create-if-absent
-  # + the seams") until 2026-08-16, and in that window nothing owned the file at
-  # all — copier skipped it, furnace stopped pouring the scaffold surface, and
-  # hephaestus's `anneal` (the last thing that rewrote one) was removed in the
-  # rewrite. MEASURED 2026-08-16: of 18 in-sync python repos, ZERO were
-  # byte-identical to this template; the fleet had drifted 45-176 lines apiece
-  # with no mechanism able to see it, and 8 repos still carried a commit-msg
-  # hook retired from here on 2026-08-04.
+  # .pre-commit-config.yaml is NOT here because it is GONE (CA F18, 2026-09-19).
+  # It was copier's, create AND update, from 2026-08-16 — the one rendered file
+  # an update rewrote — and nothing has run it since F15: hooks/pre-commit is
+  # `just check` and hooks/pre-push is `just gate`, tracked one-liners
+  # foundry-stocks' copier task renders and points core.hooksPath at. A star
+  # born before this keeps its copy until the migration at the foot of this
+  # file deletes it (byte-identical to a rendering this template shipped, or it
+  # is left alone); a star born after never gets one.
   - .github/**
   - rules/**
   - cosign.pub
@@ -331,7 +330,7 @@ _tasks:
   # Normalize the copier-generated answers file to end with exactly one newline.
   # Belt-and-braces behind the `|trim` in the answers-file jinja: the raw render
   # used to end with TWO newlines (to_nice_yaml's own + the template's final one),
-  # which fails the end-of-file-fixer pre-commit hook -> a red CI gate on the
+  # which failed the end-of-file-fixer hook of the day -> a red gate on the
   # first PR of every stamped repo. The jinja now renders exactly one; this task
   # keeps a task-skipping/untrusted render from ever regressing a trusted one.
   # Ungated: runs on BOTH copy and update.
@@ -479,8 +478,6 @@ _tasks:
   # format no named detector recognises -- a hex-encoded 32-byte key, say -- now
   # passes. That trade was made deliberately.
   - command: uvx detect-secrets@1.5.0 scan --disable-plugin HexHighEntropyString --disable-plugin Base64HighEntropyString > .secrets.baseline
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: uv run pre-commit install
     when: "{{ _copier_operation == 'copy' }}"
   # The spec-kit override set — the Forge constitution, the four template overrides
   # and the forge-feature workflow — is a COPIER TEMPLATE now (foundry-stocks' root
@@ -666,6 +663,151 @@ _tasks:
 # otherwise eat. Regenerate with:
 #   git show <sha>:template/justfile | python3 -c 'import base64,sys;print(base64.b64encode(sys.stdin.buffer.read()).decode())'
 _migrations:
+
+  # CA F18, 2026-09-19 — PRE-COMMIT LEAVES THE STARS ALREADY BORN. Nothing has
+  # run .pre-commit-config.yaml since F15 (hooks/pre-commit is `just check`,
+  # hooks/pre-push is `just gate`, both on the engine), and Rob (2026-09-19):
+  # "I don't want any of this running locally anymore." The template stopped
+  # rendering the file in this version; copier never deletes a star's file, so
+  # this is the delete — GATED ON BYTE-IDENTITY: the file goes only when its
+  # sha256 is one the four templates ever shipped (every rendering in go-,
+  # rust-, python- and frontend-repo-template's history, 83 in all; the file
+  # carried no jinja, so a rendering is a template version, byte for byte).
+  # MEASURED 2026-09-19 across origin/main of the fleet: 43 stars carry a
+  # known rendering and lose the file here; 22 trees carry an edited one or
+  # are not stars and are LEFT ALONE with a note — an edit somebody made is
+  # theirs to retire. The deletion lands as an unstaged change in whoever's
+  # tree runs the update, exactly like every other migration here.
+  #
+  # AND `just lint` BECOMES THE COMMIT STAGE. The recipe was `uv run pre-commit
+  # run …` (two shapes, the v0.25.13 sweep's PRIOR and NEW below); it is
+  # `lint: check` now — the same engine call the commit hook makes. justfile is
+  # `_skip_if_exists`, so this is the sweep that carries it, idempotent as the
+  # others: a justfile already on the new recipe, or on no shape this template
+  # shipped, is left alone.
+  #
+  # `pre-commit>=3.5` leaves the dev deps through the pyproject seam on this
+  # update; the `uv lock` task above refreshes the lock in the same run.
+  - version: v0.34.0
+    when: "{{ _stage == 'after' }}"
+    command: |
+      python3 - <<'SWEEP'
+      import base64, hashlib, pathlib, sys
+      KNOWN = {
+          "001db2950b6cb62eaf49be835e451facddcd57106df024c339c7597ca5857b01",
+          "01d960028e91109d27caf544452ccd8c95c0c2de6c19745cd2177d672086eeb5",
+          "03baea7f54efadaedbee94a71b440074fe37e76fb533234ad2a9be6b24c0da6c",
+          "0a262cdf0ef66f7717a6531d866f57c63b155cc03daead560ae4cc4e82123e83",
+          "0c52cb4c17348ca755f4f059e3eac16c01ccf1b9e3b3f7beee160728c144aee5",
+          "1214525bc9a3b9591d851be1d2f4b00b66456c9723d96998cb70d3345afe3a66",
+          "136e6606ef5b402001b61b4c688d659b18d697e039740e46552873d68c225267",
+          "1633b41678f708d36a46bfcc9174e0b05770695e492afb2e4ba31e53a2e8237d",
+          "1a3a3dadb82aac07e27d0e6970bd1f4c9cd8540e5fa0876bd0fe26a6d0114800",
+          "23b568e1bd807487cd4f4ef7162f57cfe68ca4d848ee3b5c176d3d070bbac72e",
+          "25da2b17990abb4e5dbfac7fed2cb70f089b69dec85a8e5dd86f9c2f9f1b0480",
+          "262159d711686dcd6d1dc82e2b77ba74db9c880c1810cd1794e7fd4b19121544",
+          "2ae06ca78bc67cdb096a2b3f2780ee22603a4adffcbeaf3e46ed8cd196a1dd25",
+          "2fccd8700160bf87dc02b991acf936ba36bdf0a69545dee9ea0c28a3fa0096ea",
+          "3ced0a741ed4963fbe8812bf089ea42dad087af695445e54df287b699be7b2bb",
+          "3f034c1519ac72321a3452dc3b0776981ec2a6aa689c46e118b091ff50cadf2e",
+          "3fb10d9b6f3cc32f7692abe95a4f2b4ded783408d6462821c29e55a33809073b",
+          "4432b2592d8231c829a05a528e8c9cf123e177143965e6025db60e7d349228bf",
+          "476ad3764e2b7c2e165605272795dd3d8923d53f76ff434c5f4642bec0b8ccf6",
+          "489f95fa464bb2e67f25b423185be4909577f3f68f58eeeb26b131530a8d2fb2",
+          "4956fc1f3a385b811a0f77f969226b98567cdb40396424f235b2bfcc4d79cf56",
+          "4c155ab6ac5b15cc7f7d02fd2c89a6ac9a6422a25ee4a1c366ef55ae2fffc82b",
+          "4c9026a0a79dac1d816b701a0c5e3d9beab35d5b9e9706f716d6e1dcea94f844",
+          "4ce0bb1d8050c904247907577543d71cd38c98c026c002f4495853ee7d8a510b",
+          "4d498b94944634f665c08932b704dff515abef344d49e1637fec9e4030ad84ef",
+          "589d769cdbeb161d7e795c938d56c5eb495d7e54c96f52ae4096d7ae76d016b0",
+          "5a2f2498bf168be55ee2629273e85ece2c8cd6bbe63926ca3745bad719ab5f57",
+          "5d602c32cbe983230461aeb864bee5a4f48d7017110d76f0866bf409f57c6a74",
+          "5ddea59730693576eff0c78f65948390708bbc17d2d84ff7a1b4fd8dd1100829",
+          "5fa8f63ce3ac2aad542bf1a97b5bf0a68ea3488e2474f8ca695cc6dc12730800",
+          "5fb6f60a589442071667379a1b0d686c6f9579a1509579fb91b2b77ff9b17bc0",
+          "63b4bb4e6b6ded1c53ffd5d9c00117a821d565667daa5ec50a775884d5bf3cf7",
+          "68295a5a0f86d64b41f3ca01174ea0d9721753bed89ab3668bb8b76229e38ac7",
+          "68acd733f67a3e35a0df5c9c62d417669c9f5bcd7c5a3b11f2e852a3dc93edfd",
+          "6a43c17820c3ed97c156e41b1f0f9e70350ae0e85ecfcb06c1b0e68201558671",
+          "6cbb64a10add6d74cbba162f285f27f60c1f2e1d183f1ad2e149cc8166158371",
+          "7170ac5a618167a1f14c4660a179f3dab654dd46a544773e79c0092f03a3d046",
+          "72b632c8b88b6f5302074817e8bf64cc6e0a50ab4f05459072003eb60adf988a",
+          "8548ed75deac12b0fdf91d16fb339ab0639dea2d7d9b1db48bc9aad5e050233a",
+          "871f55cb095d498473b61f4716e8de33f965ac966e02cfc3311f45c859012d86",
+          "890c3ecd8ba6a3eb8392b733a6169330ac1d29a5b0b36dc87d6e4758da7f5081",
+          "8bdc97b938da543b644265f7c5264569aa7a51f891d7204e764d7492191362c2",
+          "939ce3a6b8e48d994e0fd51295879a6628f2a63c6a18218c1a525e5ef3640024",
+          "94db747f39de1b6086b99eeab1bede98c5763933a0c43cbffd192e050da27ec3",
+          "95330cb75f54df4cc045a5b2378ff75656c1e008bd857df0007802dfff2a9f5c",
+          "95608320105efb3e9aab7f1dd93105b86e99e384c2dc78e2e08ef7604798e1bc",
+          "95eb8c6d4a03a8b50a8dbb693f899a8dd49cc98d148fdc803d8ec27299f1a7e5",
+          "9a1fdda9c52fbcd6a40ccc0407746ada670b233a83de77a6dc662cfa30954902",
+          "9ccbfb5c67660e77e0164edf24c31e1cf6fbc37afa0260051a89d3426fbbec4a",
+          "a0cc7bf5421c2a2d4d133f0585cc5b37418f697af85fafda1d6e5e4b166825a2",
+          "a4755ca22a7c62bf7add5a68e751489ee142898ecb8b03212cd70faf667e4c2e",
+          "a4ead5718d6619752b527dcb1a6f0e89d2fcbcbc65a25669c2f4576966e30a6d",
+          "a588571c0dc2f1af19d627497a7327fbd219836d9a13eba1a2b9257fc29d7e95",
+          "a5e5a8cbaba9672fcffe2affd77980a3a412c55e9c111021423cd7867a4a168b",
+          "ab7fce6ee599382a4dfad12f1f131952be25b48b0f652a169444875f5109fd91",
+          "abb554ab4421555051e510228ebe8d10e7b6828ea568b663dd89543b204db421",
+          "af4f71100cfe58417c52015169de92119a685e4b092232506378a0d4d9ffc4ca",
+          "b144b82ba076e6bee7d3c048e23a8ab903b97d8a9800e4f695eeb500d1ea007b",
+          "b1da98dcc98756a93deba096f428f25b47a3528005f0a789e9a7c335fe3f0864",
+          "bae8d77c12f255ae0b951d9c7b635dccc9ffc6fd35837f370b2df5c8f3ddac87",
+          "bd5d70ac86564aecda6c099f56a13df069d01967887611a10c4bfc38cd53332a",
+          "c0f914dd721472ee6ba7dc06149d8494a41295a22fe215a17434a2dbf43a6174",
+          "c3433c306fd4b470c4dc7b42896ccba97f8a4a99c103268441086d7896b68903",
+          "ca04af8e5a6da23076e6c3637b2e4380bc43bb2429ae946c1dbd46816d59b567",
+          "cca62137d47906d3560abee8a6f871a93439b8787e404632eebe8a5e7cc67410",
+          "ce52b2442a632854673cc4fb0f7db9ffb9e6ff3ec9b87196e09ef349a0baece5",
+          "ce5c788dea5372a56a1d8b6c999428212fc74c412a2ff5161cad9850aa99f88d",
+          "d08a148e393133a5cd396fa3d4449fb4e2bf5c6bf096f3959fbb7a067a4a4da6",
+          "d4b7119635e3d67f83bec502e8f4ce4a7396ec1abe429a2de036186af11c145b",
+          "d6a0efc0e200fad5139b0517b0dda334233adaaed47de883ba1df6a83ad72541",
+          "d6f2b8acd04f2746aabe99164708529c69656268f0ee82616c46f0b67839d0bb",
+          "d8c014627a074a18ad62e8944f3281219d812fe66dd89736700acedeeda0f79c",
+          "d9447415dda43c59739ac450fceeeabf8fe35acb0c31beef8cec92a9706a0b70",
+          "dd0ad5203507cf7eab76cd3569bf45c0e07aff73d8c9615956b6a541b88d6c2c",
+          "e0c55cbc1c995592ef58599175ea1a21ec9465f1721733938f320e7cfbf0395e",
+          "e17b1b44c24dfc9ee3d4b214820c27e899e328deb5e6913d1ce29af94189d45f",
+          "e347c89a3255892a0fd0232a3775c89e9eb8543f24fc0f99069f451efadb5401",
+          "e3dabe6c05d7754f11480bcf435fee87c7926b0df75edae364ba9c97e7ecdeba",
+          "e8088a7f0731da4e318614de9c81d902708f6093e73a7e1d1b94b4466a22967d",
+          "efd62ec5a6441243d10395d0501cb4c51afb90e79d9bfe8c26c8098e206b61b4",
+          "fd35be1bcdacc740a2a23f402e958161096bb9b36bfa29f216355cffc28a713d",
+          "fdf9022b0a9a0209f2a23197b6e185ce2e6ea1c3673b1e04f6584a240b6ddae1",
+          "ff8fcd8cd133b754e79f8d492a1eb72709a6892cd431a2722d1934864058e5b9",
+      }
+      p = pathlib.Path(".pre-commit-config.yaml")
+      if p.exists():
+          digest = hashlib.sha256(p.read_bytes()).hexdigest()
+          if digest in KNOWN:
+              p.unlink()
+              print("copier: deleted .pre-commit-config.yaml - a rendering this template "
+                    "shipped; nothing has run it since the hooks became `just check` / "
+                    "`just gate` (CA F15/F18)")
+          else:
+              print("copier: .pre-commit-config.yaml matches no rendering the templates "
+                    "shipped (sha256 " + digest[:12] + ") - LEAVING IT ALONE. Retire it by hand; "
+                    "nothing runs it.")
+      PRIOR = [base64.b64decode("IyBGb3JtYXQgKyBsaW50IHZpYSB0aGUgcmVwbydzIHByZS1jb21taXQgaG9va3MgKHJ1ZmYgZXQgYWwuKQpsaW50OgogICAgdXYgcnVuIHByZS1jb21taXQgcnVuIC0tYWxsLWZpbGVzIC0tc2hvdy1kaWZmLW9uLWZhaWx1cmUKCg==").decode(),
+               base64.b64decode("IyBGb3JtYXQgKyBsaW50IHZpYSB0aGUgcmVwbydzIHByZS1jb21taXQgaG9va3MgKHJ1ZmYgZXQgYWwuKQojCiMg4pqRIGAtLWFsbC1maWxlc2AgRE9FUyBOT1QgTUVBTiBBTEwgRklMRVMuIEl0IG1lYW5zIGV2ZXJ5IGZpbGUgR0lUIEtOT1dTCiMgQUJPVVQsIHNvIGEgbmV3bHkgd3JpdHRlbiBtb2R1bGUgaXMgSU5WSVNJQkxFIHRvIGxpbnQgdW50aWwgaXQgaXMgc3RhZ2VkOgojIGBqdXN0IGNoZWNrYCBwYXNzZXMgZ3JlZW4sIGFuZCB0aGUgY29tbWl0IGhvb2sgdGhlbiBmYWlscyBvbiB0aGUgc2FtZSBmaWxlCiMgZm9yIGZpbmRpbmdzIHRoZSBnYXRlIGp1c3QgdG9sZCB5b3Ugd2VyZSBub3QgdGhlcmUuCiMKIyBNRUFTVVJFRCBUV0lDRSBJTiBPTkUgREFZLCAyMDI2LTA4LTE5LiBBIG5ldyBtbmVtb3N5bmUgbW9kdWxlIGNhcnJpZWQgZml2ZQojIHJ1ZmYgZmluZGluZ3MgKEQ0MDEgeDQsIE44MTgpIHRocm91Z2ggYSBncmVlbiBganVzdCBjaGVja2AsIHN1cmZhY2luZyBvbmx5CiMgYXQgYGdpdCBhZGRgLiBBIG5ldyBlcmlzIHRlc3QgY2FycmllZCBhIFRDMDAzIHRoZSBzYW1lIHdheSBob3VycyBlYXJsaWVyLgojIEJvdGggd2VyZSBjYXVnaHQgYnkgdGhlIGNvbW1pdCBob29rLCB3aGljaCBpcyB0aGUgZ2F0ZSB3b3JraW5nIOKAlCBidXQgaXQgaXMKIyB0aGUgU0xPVyBnYXRlLCBhZnRlciB0aGUgbWVzc2FnZSBpcyB3cml0dGVuLCBhbmQgaXQgdGVhY2hlcyBwZW9wbGUgdGhhdAojIGdyZWVuIG1lYW5zIG5vdGhpbmcuCiMKIyBTbyBhIHNlY29uZCBwYXNzIGNvdmVycyB3aGF0IHRoZSBmaXJzdCBjYW5ub3Qgc2VlLiBJdCBydW5zIG9ubHkgd2hlbiB0aGVyZQojIEFSRSB1bnRyYWNrZWQgZmlsZXMsIGFuZCBgLS1leGNsdWRlLXN0YW5kYXJkYCBob25vdXJzIC5naXRpZ25vcmUsIHNvIGJ1aWxkCiMgb3V0cHV0IGFuZCAudmVudiBzdGF5IG91dCBvZiBpdC4gVHdvIHBhc3NlcyByYXRoZXIgdGhhbiBvbmUgdW5pb24gbGlzdAojIGJlY2F1c2UgZWFjaCBrZWVwcyBwcmUtY29tbWl0J3Mgb3duIHNlbWFudGljcyBpbnRhY3Qg4oCUIGAtLWFsbC1maWxlc2Agc3RpbGwKIyBkb2VzIGV4YWN0bHkgd2hhdCBpdCBhbHdheXMgZGlkLgpsaW50OgogICAgIyEvdXNyL2Jpbi9lbnYgYmFzaAogICAgc2V0IC1ldW8gcGlwZWZhaWwKICAgIHV2IHJ1biBwcmUtY29tbWl0IHJ1biAtLWFsbC1maWxlcyAtLXNob3ctZGlmZi1vbi1mYWlsdXJlCiAgICBtYXBmaWxlIC10IHVudHJhY2tlZCA8IDwoZ2l0IGxzLWZpbGVzIC0tb3RoZXJzIC0tZXhjbHVkZS1zdGFuZGFyZCkKICAgIGlmIFsgJHsjdW50cmFja2VkW0BdfSAtZ3QgMCBdOyB0aGVuCiAgICAgICAgcHJpbnRmICdsaW50OiAlZCB1bnRyYWNrZWQgZmlsZShzKSAtLWFsbC1maWxlcyB3b3VsZCBoYXZlIHNraXBwZWRcbicgIiR7I3VudHJhY2tlZFtAXX0iCiAgICAgICAgdXYgcnVuIHByZS1jb21taXQgcnVuIC0tc2hvdy1kaWZmLW9uLWZhaWx1cmUgLS1maWxlcyAiJHt1bnRyYWNrZWRbQF19IgogICAgZmkKCg==").decode()]
+      NEW = base64.b64decode("IyBGb3JtYXQgKyBsaW50IOKAlCB0aGUgY29tbWl0IHN0YWdlLCBvbiB0aGUgZW5naW5lOiB0aGUgc2FtZSBjYWxsIHRoZSBjb21taXQgaG9vawojIG1ha2VzIChganVzdCBjaGVja2AsIHN0YWdlcy5qdXN0KS4gTk9USElORyBMSU5UUyBMT0NBTExZIEFOWSBNT1JFIChDQSBGMTg7CiMgUm9iLCAyMDI2LTA5LTE5OiAiSSBkb24ndCB3YW50IGFueSBvZiB0aGlzIHJ1bm5pbmcgbG9jYWxseSBhbnltb3JlIik6IG5vCiMgcHJlLWNvbW1pdCwgbm8gcnVmZiBvciBteXB5IG9uIHRoZSBsYXB0b3Ag4oCUIHRoZSBmbGVldCdzIHJ1bGVzZXQgaXMKIyBmb3VuZHJ5LXRvb2xzJywgdGhlIGVuZ2luZSBjYWNoZXMgZXZlcnkgdG9vbGNoYWluLCBhbmQgYSByZWQgaGVyZSBpcyB0aGUKIyBzYW1lIHJlZCB0aGUgZG9vciB3b3VsZCBnaXZlLiBJdCBzZWVzIGV2ZXJ5IGZpbGUgaW4gdGhlIHRyZWUsIHN0YWdlZCBvciBub3QsCiMgYmVjYXVzZSB0aGUgZW5naW5lIGlzIGhhbmRlZCB0aGUgdHJlZSBhbmQgbm90IGdpdCdzIGluZGV4LgpsaW50OiBjaGVjawoK").decode()
+      j = pathlib.Path("justfile")
+      if not j.exists():
+          print("copier: no justfile here - nothing to sweep"); sys.exit(0)
+      t = j.read_text(encoding="utf-8")
+      if NEW in t:
+          print("copier: `just lint` is already the commit stage"); sys.exit(0)
+      for old in PRIOR:
+          if old in t:
+              j.write_text(t.replace(old, NEW, 1), encoding="utf-8")
+              print("copier: swept the lint recipe - `just lint` is the commit stage on "
+                    "the engine now; nothing lints locally")
+              sys.exit(0)
+      print("copier: the lint recipe matches no shape this template shipped -")
+      print("copier: LEAVING IT ALONE. Reconcile by hand against v0.34.0.")
+      SWEEP
 
   # ONE-OFF SWEEP for v0.25.13: carry the untracked-file lint fix to stars
   # already born. Same mechanism, same reasons, same safety rules as the

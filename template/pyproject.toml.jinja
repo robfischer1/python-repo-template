@@ -51,8 +51,7 @@ dev = [
     "ruff==0.16.0",
     "mypy>=1.10",
     "pyright==1.1.411",
-    "pre-commit>=3.5",
-    # The three forge-testkit lints the pre-commit config runs. DECLARED HERE,
+    # The three forge-testkit lints the commit stage runs. DECLARED HERE,
     # not assumed: the hooks landed in v0.16.3 and this dep never did, so every
     # scaffold since has shipped three hooks calling a package `uv run --extra
     # dev` cannot resolve. Existing stars only work because the pin was added by

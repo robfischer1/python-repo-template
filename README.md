@@ -20,7 +20,7 @@ copier copy /path/to/python-repo-template my-new-service
 Copier asks a set of questions (see below), then runs `_tasks`: `git init`,
 wire the remotes (`origin` = the Ourea door, `forgejo` fetch-only, `github` the
 push mirror — see [Remotes](#remotes)), `uv sync`, generate `.secrets.baseline`,
-install pre-commit hooks, run `specify init` (spec-kit scaffold), lay the
+run `specify init` (spec-kit scaffold), lay the
 governance layer (`furnace die` composes the `code-repo-sdd` kit, `gavel order`
 lays it), and finally merge this template's ignore rules into `.gitignore` (see
 [the managed block](#the-gitignore-managed-block)). A failure in any task rolls
@@ -148,17 +148,12 @@ disabled instance-wide. The `_tasks` only wire the local remotes.
 
 ## Development (of the template itself)
 
-This repo has no `pyproject.toml` of its own, but it **is** gated — and as of
-2026-08-12 it gates *itself*, where before it gated only its children. Install
-the hooks first:
-
-```bash
-uvx pre-commit install
-```
-
-`pre-commit` checks the SOURCE repo (`copier.yml` as YAML, `ci-matrix.toml` as
-TOML, no committed conflict markers). `pre-push` runs both matrices CI runs.
-`template/` is excluded from the parsers on purpose: it is jinja source, and
+This repo has no `pyproject.toml` of its own, but it **is** gated — by the
+door, on every pull, like every other repo in the fleet: the commit stage over
+the SOURCE repo (`copier.yml` as YAML, `ci-matrix.toml` as TOML, no committed
+conflict markers, no secrets) and the render matrix below. Nothing runs
+locally; there is no pre-commit here since CA F18 (2026-09-19). `template/` is
+excluded from the parsers on purpose: it is jinja source, and
 `pyproject.toml.jinja` is not valid TOML. Parsing the RENDERED tree is the render
 matrix's job, with answers substituted.
 
