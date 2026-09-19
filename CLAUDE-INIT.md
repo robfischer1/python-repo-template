@@ -219,11 +219,12 @@ left behind.
   generated repo gets its governance from `furnace ignite`, poured fresh
   each time from the furnace kit (`code-repo-sdd`), not copied from this
   template.
-- **`stellar-core` and `mnemosyne-core`** resolve from the fleet's private
-  PyPI (`nexus.notusmi.com/repository/pypi-hosted/simple/`) and a public
-  git tag pin respectively — the former needs network access to Nexus
-  (`--network host` in every workflow) to resolve; there is no vendoring.
-  It was Forgejo's PyPI until 2026-09-10; every version moved (infra#351).
+- **`stellar-core` and `mnemosyne-core`** resolve from the fleet's own
+  PyPI (devpi's `fleet/prod` at `packages.notusmi.com/pypi/fleet/prod/+simple/`)
+  and a public git tag pin respectively — the former needs network access to
+  the fleet to resolve; there is no vendoring. It was Nexus's pypi-hosted from
+  2026-09-10 to 2026-09-18 and Forgejo's before that; every version moved
+  each time, hash-identical.
 - **cosign version pin discipline**: `versions.env`'s `COSIGN_VERSION` is
   read by both `admit.yml` (verify) and `deploy.yml` (sign) — bumping one
   without the other breaks signature verification across the fleet. Change
