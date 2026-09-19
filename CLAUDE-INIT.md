@@ -158,7 +158,7 @@ copier copy . /tmp/smoke-test --data project_name="Smoke Test" --defaults
 # Then, inside the rendered repo:
 cd /tmp/smoke-test
 uv sync --extra dev
-uv run pre-commit run --all-files
+just lint            # the commit stage, on the engine
 uv run mypy src tests
 uv run pyright
 uv run pytest -q
@@ -174,7 +174,7 @@ The `_tasks` pipeline in `copier.yml` (what runs on a real `copier copy`,
 in order): normalize `.copier-answers.yml`'s trailing newline → `git init`
 → add `origin` (Forgejo) + `github` (mirror) remotes → `uv sync --extra dev`
 → `uv lock` (also runs on `update`, unconditionally) → `detect-secrets scan`
-→ `pre-commit install` → `specify init --here --force --integration claude
+→ `specify init --here --force --integration claude
 --script ps --ignore-agent-tools` (spec-kit scaffold) → `specify extension
 disable agent-context` → `furnace ignite . --kit code-repo-sdd` → `specify
 preset resolve speckit.plan` (verification step). A failure anywhere rolls
