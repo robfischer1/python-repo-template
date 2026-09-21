@@ -140,7 +140,7 @@ A stamped repo is born with three remotes, the post-F27 fleet convention:
 | Remote | URL | Role |
 |---|---|---|
 | `origin` | `https://git.notusmi.com/<service_name>.git` | The **Ourea door** — the authoritative git gateway. Serves real fetch/pull, and gates landings via `Serves`. Takes a **bare** repo name, no `rob/` prefix. |
-| `forgejo` | `https://forgejo.notusmi.com/rob/<service_name>.git` | **Fetch only.** Its push side is set to the `no_push_f27` sentinel so a stray `git push forgejo` fails loudly instead of bypassing the gate. |
+| `forgejo` | `https://git.notusmi.com/rob/<service_name>.git` | **Fetch only.** Its push side is set to the `no_push_f27` sentinel so a stray `git push forgejo` fails loudly instead of bypassing the gate. |
 | `github` | `https://github.com/robfischer1/<service_name>.git` | Push mirror. |
 
 The remote repo must still be created on Forgejo first — push-to-create is
