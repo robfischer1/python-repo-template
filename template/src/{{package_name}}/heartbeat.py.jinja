@@ -2,6 +2,30 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+{#
+  THE ONE PRODUCT MODULE LEFT UNCONDITIONAL, and the asymmetry is load-bearing
+  rather than an oversight. Its four siblings — health.py, observability.py,
+  settings.py, oneiroi.py — are gated `not is_sdk`, because for the repo that
+  PROVIDES the op-contract a star's stub of it is circular: a star's health.py
+  reads `from stellar_core import HealthState`, so the SDK owning one imports
+  itself. This file cannot join them, and the reason is copier's update model,
+  measured 2026-09-25 against the real repo rather than reasoned about:
+
+    A PATH THAT LEAVES THE RENDER SET IS DELETED FROM THE DESTINATION, and
+    `_skip_if_exists` does not stop it — it governs overwrite, not existence.
+    stellar-core owns a 273-line heartbeat RUNNER at exactly this path, and the
+    v0.34.2 template deleted it (`D src/stellar_core/heartbeat.py`). So the path
+    must stay in the render set for the SDK, and skip_if_exists is what keeps
+    the SDK's own content in it.
+
+  THE COST, stated rather than hidden: a FRESH `copier copy` with is_sdk=true
+  renders this file with imports of `.health` and `.settings`, which that answer
+  gates away. That render does not import. It is degenerate by construction —
+  is_sdk means "this repo IS stellar_core", and there is one of those and it
+  already exists, so the only real is_sdk path is `copier update` into a tree
+  that already owns this file. If a second SDK is ever born, that is the moment
+  to give this file a real `not is_sdk` body instead of this note.
+#}
 """Heartbeat publisher — emits {live, ready, metrics} to redpanda periodically.
 
 The async-worker arm of the universal op-contract: a background thread publishes

@@ -85,11 +85,28 @@ name = "is-sdk"
 answers = { project_name = "Gate Py", variant = "library", mcp = false, is_sdk = true }
 present = [
   "pyproject.toml",
-  "src/gate_py/health.py",
+  # THE ONE PRODUCT MODULE THE SDK STILL RECEIVES, and it is pinned PRESENT on
+  # purpose: a path that leaves the render set is DELETED from the destination
+  # (`_skip_if_exists` governs overwrite, not existence — measured against the
+  # real repo, which lost its 273-line runner to v0.34.2). The SDK owns this
+  # path, so the template must keep claiming it and let skip_if_exists preserve
+  # the content. If this line ever flips to `absent`, stellar-core loses its
+  # heartbeat runner on its next update.
   "src/gate_py/heartbeat.py",
-  "src/gate_py/observability.py",
 ]
-absent = [".forgejo", ".dockerignore"]
+absent = [
+  ".forgejo",
+  ".dockerignore",
+  # A STAR'S STUB OF THE OP-CONTRACT IS CIRCULAR IN THE REPO THAT PROVIDES IT:
+  # health.py reads `from stellar_core import HealthState`, so the SDK owning one
+  # imports itself. Same for the settings/oneiroi scaffolding and the born-with
+  # smoke test, which exercise a star's shape. The SDK has its own suite.
+  "src/gate_py/health.py",
+  "src/gate_py/observability.py",
+  "src/gate_py/settings.py",
+  "src/gate_py/oneiroi.py",
+  "tests/test_smoke.py",
+]
 
 [[case]]
 name = "sovereign-db"
