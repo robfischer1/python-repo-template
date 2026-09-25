@@ -180,6 +180,25 @@ variant:
     a release binary (CLI): binary
   default: star
 
+# THE OP-CONTRACT IS NOT A CONTAINER FEATURE, which is why this is its own
+# question rather than another read of `variant`. health.py, heartbeat.py and
+# observability.py were poured only into a star until 2026-09-25, and the
+# measurement that ended it is blunt: this template has TWO subscribers,
+# stellar-core and vault-mcp, and BOTH are libraries. The gate was not sparing a
+# minority — it withheld the op-contract from every repo that has ever
+# subscribed. health.py's own docstring had carried a "Library/CLI star" branch
+# the filename gate made unreachable the whole time.
+#
+# What the old gate was actually reaching for is CONSUMES-vs-PROVIDES, and there
+# is exactly one provider. Answer true only in the SDK's own repo: it ships the
+# op-contract, so it must not depend on itself — and `pyproject.toml` is this
+# template's 3-way MERGE seam rather than a skipped file, so a self-dependency
+# would really land.
+is_sdk:
+  type: bool
+  help: "This repo IS the stellar_core SDK — it PROVIDES the op-contract rather than consuming it."
+  default: false
+
 # Where the package lives, for the publish lane. "." for a single-package repo.
 package_dir:
   type: str
