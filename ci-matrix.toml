@@ -26,7 +26,12 @@ answers = { project_name = "Gate Py", variant = "star", mcp = true }
 present = [
   "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
   "src/gate_py/settings.py",
+  # The op-contract trio, and they are pinned in the LIBRARY case too — which is
+  # the point. They were `variant == 'star'` until 2026-09-25 and so reached
+  # nobody: both of this template's subscribers are libraries.
   "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/observability.py",
   "pyproject.toml",
   ".dockerignore",                 # containerised: build context matters
   "tests/test_smoke.py",
@@ -49,6 +54,14 @@ answers = { project_name = "Gate Py", variant = "library", mcp = false }
 present = [
   "pyproject.toml",
   "src/gate_py/__init__.py",
+  # THE OP-CONTRACT IS NOT A CONTAINER FEATURE. Pinned PRESENT here because the
+  # star case pinning them proves nothing on its own: they were star-gated for
+  # months while every actual subscriber was a library, so the crossing that
+  # matters is this one. health.py's own docstring carried a "Library/CLI star"
+  # branch the whole time, unreachable behind the filename gate.
+  "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/observability.py",
   "tests/conftest.py",              # the guard is not a star-only thing
   "tests/test_network_guard.py",
 ]
@@ -60,6 +73,23 @@ absent = [
   "src/gate_py/server.py",
   ".dockerignore",
 ]
+
+[[case]]
+# THE SDK'S OWN ANSWER, and it is here for tier 2 rather than tier 1: the file
+# list is a library's, and what differs is the pyproject — `is_sdk = true` drops
+# the `stellar-core` dependency, because the one repo that PROVIDES the
+# op-contract must not depend on itself. Same reason sovereign-db and core-backed
+# have cases: content-only variance still gets parsed, so a malformed branch in
+# the jinja reds here instead of shipping into the SDK's own manifest.
+name = "is-sdk"
+answers = { project_name = "Gate Py", variant = "library", mcp = false, is_sdk = true }
+present = [
+  "pyproject.toml",
+  "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/observability.py",
+]
+absent = [".forgejo", ".dockerignore"]
 
 [[case]]
 name = "sovereign-db"
