@@ -55,3 +55,11 @@ CLAUDE.md
 # It was tracked anyway in 42 repos (1,005 files, ~24 per repo), which is not
 # a decision anybody wrote down: only .specify/feature.json was ever ignored.
 .specify/
+
+# Agent session locks. .claude/hooks/agent_lock.py writes .agent-locks/<session>.json
+# at SessionStart and unlinks it at SessionEnd; a dead pid's lock is reaped on the
+# next read. Per-machine runtime state keyed to a live pid — worthless to any other
+# clone, meaningless once the process exits. The machine-global excludes file carries
+# this for clones that already exist; the template is what makes a struck star carry
+# it on its own.
+.agent-locks/
