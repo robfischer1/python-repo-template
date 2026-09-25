@@ -27,7 +27,6 @@
 .env
 .env.*
 *.pem
-.secrets.baseline
 
 # Editor / OS noise
 .idea

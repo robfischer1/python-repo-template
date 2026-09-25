@@ -173,7 +173,7 @@ compose.yaml, pyproject deps, star.toml entrypoint).
 The `_tasks` pipeline in `copier.yml` (what runs on a real `copier copy`,
 in order): normalize `.copier-answers.yml`'s trailing newline → `git init`
 → add `origin` (Forgejo) + `github` (mirror) remotes → `uv sync --extra dev`
-→ `uv lock` (also runs on `update`, unconditionally) → `detect-secrets scan`
+→ `uv lock` (also runs on `update`, unconditionally)
 → `specify init --here --force --integration claude
 --script ps --ignore-agent-tools` (spec-kit scaffold) → `specify extension
 disable agent-context` → `furnace ignite . --kit code-repo-sdd` → `specify

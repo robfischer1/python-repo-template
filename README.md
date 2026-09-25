@@ -19,8 +19,8 @@ copier copy /path/to/python-repo-template my-new-service
 
 Copier asks a set of questions (see below), then runs `_tasks`: `git init`,
 wire the remotes (`origin` = the Ourea door, `forgejo` fetch-only, `github` the
-push mirror — see [Remotes](#remotes)), `uv sync`, generate `.secrets.baseline`,
-run `specify init` (spec-kit scaffold), lay the
+push mirror — see [Remotes](#remotes)), `uv sync`, run `specify init`
+(spec-kit scaffold), lay the
 governance layer (`furnace die` composes the `code-repo-sdd` kit, `gavel order`
 lays it), and finally merge this template's ignore rules into `.gitignore` (see
 [the managed block](#the-gitignore-managed-block)). A failure in any task rolls
