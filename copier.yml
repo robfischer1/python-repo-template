@@ -399,24 +399,29 @@ _tasks:
   # template's \d{4}, spelt without a backslash to survive YAML->shell->python).
   - command: python -c "import pathlib; p=pathlib.Path('pyproject.toml'); t=p.read_text(encoding='utf-8'); s='[tool.ruff.lint.flake8-copyright]'; body=s+chr(10)+'notice-rgx = '+chr(39)+'(?i)SPDX-FileCopyrightText:.*[0-9]{4}'+chr(39)+chr(10); p.write_text(t if s in t else t.rstrip()+chr(10)+chr(10)+body, encoding='utf-8')"
     when: "{{ _copier_operation == 'update' }}"
-  # Flame C4 -- migrate a pre-recentralization star. Recentralization moved the
-  # tofu ROOTS to rob/infra, so the star-local `infra/` tree + `compose.yaml` are
-  # dead weight; the ONE thing the star still owns -- its sovereign spec -- is
-  # RELOCATED to `{star}.tfvars` at root (rob/infra harvests it as
-  # catalog/{star}.tfvars). MOVE before REMOVE so the operator's env survives.
-  # Update-only (a fresh copy has neither); idempotent via the explicit `if`
-  # existence guard below, not a blanket `|| true` -- a migrated star (file
-  # already gone) still no-ops, but a REAL `git mv` failure (dest exists,
-  # detached HEAD, permission denied) now fails the strike instead of being
-  # swallowed alongside the expected case.
-  - command: if test -f infra/terraform.tfvars; then git mv -f infra/terraform.tfvars {{ service_name }}.tfvars; fi
-    when: "{{ _copier_operation == 'update' and mcp }}"
+  # THE FLAME C4 RELOCATION IS GONE, and so is what it relocated to. It moved
+  # `infra/terraform.tfvars` to `{star}.tfvars` at root on update, explaining itself
+  # as "rob/infra harvests it as catalog/{star}.tfvars". IT DOES NOT, and has not
+  # for weeks — rob/infra's own Makefile records both deaths: the
+  # catalog/<star>.tfvars -> stacks/services generator went on 2026-08-08, and
+  # OPENTOFU ITSELF went on 2026-09-07 with the roots, fleet-facts/, modules/fleet
+  # and the three deploy lanes. Neither catalog/ nor stacks/services/ exists, and
+  # infra/.gitignore carries `*.tfvars` so a tfvars was never tracked there at all.
+  # Every star deploys from a compose spec in rob/nas01-stacks. Rob's ruling
+  # 2026-09-28: tfvars should be gone.
+  #
+  # This template renders no tfvars of its own (measured: no path under template/
+  # matches), so removing the move removes the last live mention. The note is worth
+  # more than the task was: the next reader who finds a `{star}.tfvars` at a star's
+  # root learns where its consumer went instead of assuming one exists.
   # `--ignore-unmatch` is git rm's OWN no-op-when-absent guard -- that already
   # covers "a migrated star has nothing left to remove"; a trailing `|| true`
   # on top of it added nothing but a way to hide a real `git rm` failure (not a
   # git repo, index lock, permission denied). Removed the file, not the flag.
-  # compose.yaml and infra/ are RETIRED by this update (the deploy spec moved to
-  # <name>.tfvars, one task above). Removal is per-path and conditional, because
+  # compose.yaml and infra/ are RETIRED by this update — the deploy spec lives in
+  # rob/nas01-stacks now, not in a tfvars one task above (see the note there). THE
+  # REMOVAL STAYS: retiring the tree is still right, and it is the half of Flame C4
+  # that was never about tfvars. Removal is per-path and conditional, because
   # the three obvious spellings are each wrong in a different way -- and all
   # three shipped across these four templates at once, which is what prompted
   # reconciling them:
@@ -573,8 +578,11 @@ _tasks:
       furnace die "$kit" --dest "$die" && gavel order . --from "$die" --hammer; rc=$?;
       rm -rf "$die"; exit $rc'
     when: "{{ _copier_operation == 'copy' }}"
-  # NOTE: a star no longer scaffolds `/infra` (Flame C4) — the tofu roots live in
-  # rob/infra, which harvests the sovereign shape from the star's {star}.tfvars.
+  # NOTE: a star no longer scaffolds `/infra` (Flame C4). This used to add "the tofu
+  # roots live in rob/infra, which harvests the sovereign shape from the star's
+  # {star}.tfvars" — BOTH HALVES ARE NOW FALSE. OpenTofu left rob/infra on
+  # 2026-09-07 and the harvest died a month earlier; deploy is a compose spec in
+  # rob/nas01-stacks. The scaffolding claim is the part that still holds.
   # copier needs no docker or Forgejo creds to stamp a star.
   # Verify the plan-command override resolves as the project-tier winner.
   - command: specify preset resolve speckit.plan
