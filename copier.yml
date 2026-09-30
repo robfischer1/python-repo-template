@@ -32,8 +32,16 @@ _min_copier_version: "9.0.0"
 # files (editorconfig, …) are skipped here so update never
 # conflicts them; anneal CLOBBERS them from a fresh render (Flame C2) — a
 # conformance surface is enforced, not merged. Paths are RENDERED destination
-# paths (template/ stripped by _subdirectory, .jinja stripped). Kept in sync
-# with hephaestus `ownership.py`'s non-seam set (Flame C1).
+# paths (template/ stripped by _subdirectory, .jinja stripped).
+#
+# THIS LIST IS NO LONGER KEPT IN SYNC WITH ANYTHING, and the line saying it was
+# is removed rather than reworded. It read "Kept in sync with hephaestus
+# `ownership.py`'s non-seam set (Flame C1)". That file was deleted on 2026-08-07
+# in hephaestus d202dce, "burn the Python tree — the deployed star is Go, the
+# tools are Rust", so the sync partner has been gone ~7 weeks and the claim
+# outlived it. It is the second dead cross-reference this one comment block was
+# carrying; the other is written up against pyproject.toml below, and both were
+# a deletion elsewhere that nobody propagated back to the prose asserting it.
 _skip_if_exists:
   # star-owned: rendered once at birth, then the star's
   - README.md
@@ -44,65 +52,64 @@ _skip_if_exists:
   - SECURITY.md
   - src/**
   - tests/**
-  # THE SEAM NARROWED, NOT CLOSED — and pyproject.toml is deliberately ABSENT
-  # from this list, alone among the five templates.
+  # THE SEAM IS CLOSED, 2026-09-30 — pyproject.toml joins the list, last of the
+  # five templates to do it. The paragraph this replaces argued the opposite,
+  # with real measurements, and was right when it was written. Its load-bearing
+  # clause stopped being true and nobody noticed.
   #
-  # The other four closed their manifest seam outright: go.mod and Cargo.toml had
-  # been touched by their template exactly ONCE each (the commit that created
-  # them), and package.json 10 times with a thin claim, so skipping cost nothing.
-  # MEASURED HERE, the answer inverts: template/pyproject.toml.jinja has 23
-  # commits, `[project]` changed in 17 of them and `[tool.*]` in 16 — uv 8,
-  # mypy 4, ruff 2, pytest / coverage / hatch / pyright / forge_testkit_lint 1
-  # each. This template delivers real, ongoing conformance through that file, and
-  # `[tool.hatch]` and most of `[tool.uv]` CANNOT live anywhere else — they are
-  # build-backend and resolver config that pyproject.toml owns by definition.
+  # IT DEFERRED TO A DETECTOR THAT NO LONGER EXISTS. The argument was: skipping
+  # would withhold sixteen tool-config deliveries to prevent a clobber, so keep
+  # the seam and catch regressions with foundry-stocks' manifest guard instead.
+  # That guard was `ci/lib/manifest_guard.py`, 1,137 lines, hardened across five
+  # commits to 2026-08-23 (the python floor at four writers, then 24 projected
+  # strictness keys to 209). It was DELETED on 2026-09-14 in foundry-stocks
+  # 97b20c9, "delete the seven ci/lib scripts nothing runs" — correctly, because
+  # the gate had moved to foundry-tools' Dagger atoms and nothing reached it any
+  # more. That commit's own body lists what still referenced it and calls the
+  # mentions "historical", naming this very comment among them. It was not
+  # historical. It was the reason the seam was open, and removing the guard left
+  # the seam open with nothing behind it.
   #
-  # So skipping it would withhold sixteen tool-config deliveries' worth of
-  # conformance to prevent a clobber, which is trading one silent failure for
-  # another. pyproject stays a merge seam, and is protected by DETECTION instead:
-  # foundry-stocks' manifest guard refuses a copier-update PR that regresses a
-  # star-owned field. Uniform closure would have been wrong for exactly one of
-  # the five templates, and this is it.
+  # So the previous text's own closing warning came true a third time: "the
+  # reason for holding the seam open is only as good as the detector it defers
+  # to ... or this comment goes back to being a promise the fleet cannot keep.
+  # Twice now it has been exactly that." Twice it was a guard that projected too
+  # few keys. This time there is no guard.
   #
-  # THAT DETECTION WAS HALF-BUILT UNTIL 2026-08-22, and this paragraph asserted
-  # it anyway. manifest_guard.py projected `[project]` and `dependency-groups`
-  # and nothing under `[tool.*]`, so the promise held for dependencies and failed
-  # for the rest of the file. It cost athena and themis their
-  # `target-version = "py314"` on an ordinary update (athena 2193835) with the
-  # guard green, and left 21 of 24 python repos linting at 3.12 while declaring
-  # `requires-python = ">=3.14"`. The guard now reads the python floor at every
-  # writer — requires-python, `[tool.ruff] target-version`, `[tool.mypy]
-  # python_version`, `[tool.pyright] pythonVersion` — comparing EFFECTIVE floors
-  # so deleting a redundant literal still reads as the raise it is. (This
-  # paragraph said "all three writers" while the guard already read four; the
-  # pyright writer was found when narcissus sat at `pythonVersion = "3.12"`
-  # against a 3.14 file and `ruff format`'s unparenthesised except-group became
-  # a pyright syntax error. Four in pyproject, five counting `.python-version`.)
+  # WHAT CLOSING COSTS, measured 2026-09-30 rather than carried over from the old
+  # paragraph, because the population it was measured against is gone. There are
+  # THREE python repos left in the fleet (forge-testkit, stellar-core,
+  # vault-mcp), not the 24 the old text reasoned about — the rest became Go
+  # stars. All three already sit at 3.14 on every writer this template sets, so
+  # the conformance the seam was held open to deliver has already arrived. The
+  # sections they do not carry are: tool.coverage.run (all three),
+  # tool.uv.index / tool.uv.sources (forge-testkit), tool.mypy / tool.pyright /
+  # tool.forge_testkit_lint / project.urls (stellar-core), tool.hatch.* (vault-mcp).
   #
-  # THE SECOND HALF LANDED 2026-08-23, and it is the same shape one table over.
-  # `strictness` projected `[tool.mypy] strict` alone, so the guard could tell
-  # you the floor moved but not that type checking had been switched OFF. It now
-  # projects every writer that can weaken a star:
+  # AND ONE OF THOSE IS THE ARGUMENT BY ITSELF. vault-mcp builds with setuptools
+  # — it carries `[tool.setuptools.packages.find]` where this template ships
+  # `[tool.hatch.version]` and `[tool.hatch.build.targets.wheel]`. A three-way
+  # merge there does not risk losing a key, it risks writing a second, wrong
+  # build backend into a working project. The seam was not neutral-but-unguarded;
+  # it was actively pointed at a repo it would damage.
   #
-  #     [tool.mypy]    strict · disable_error_code (a code ADDED is a relaxation)
-  #     [tool.pyright] typeCheckingMode · every report* rule
-  #     [[tool.pyright.executionEnvironments]]  the same rules, PER ROOT
+  # HOW THE TEMPLATE STILL DELIVERS, the same way the other four do: a change to
+  # this file that consumers need gets a VERSIONED `_migrations` entry patching
+  # the specific keys. That is what migrations are for — it runs after the diff
+  # and it states its intent, where a merge guesses silently. The v0.34.0 entry
+  # at the bottom of this file is the worked example, and note that it used "the
+  # pyproject seam" to carry `pre-commit>=3.5`; from this version on that kind of
+  # delivery is the migration's job, not the merge's.
   #
-  # 24 projected keys before, 209 after. The per-root form is the one that
-  # actually bit: mnemosyne carried `reportPrivateUsage = false` under an
-  # executionEnvironments block for `tests` from 2026-07-04 until mnemosyne#188
-  # removed it, and in between a session read the disabled rule as a CONVENTION
-  # and cited it to justify reaching past module seams. No `[project]` field
-  # describes any of that. Both directions are asymmetric on purpose — a rule
-  # newly set to off is refused, removing a relaxation never is, because a guard
-  # that refuses the repair of the thing it guards is worse than absent.
+  # Copier issue #2486 is this exact dilemma and is still OPEN upstream —
+  # overwrite eats the project's content, skip withholds the template's
+  # improvements, and there is no per-key ownership. Skip plus migrations is the
+  # half that fails loudly.
   #
-  # The lesson generalises past this file: the reason for holding the seam open
-  # is only as good as the detector it defers to, so ANY future `[tool.*]` field
-  # a star is expected to own needs a projection in that guard, or this comment
-  # goes back to being a promise the fleet cannot keep. Twice now it has been
-  # exactly that, and both times the gap was found by a star losing something
-  # rather than by anyone reading this paragraph.
+  # IF A DETECTOR COMES BACK, this can be reopened — but on the evidence it
+  # should not be reopened just because one exists. The seam's whole history is
+  # three rounds of a guard that covered less than the comment claimed.
+  - pyproject.toml
   #
   # Everything else that was still merged joins the list. .gitignore because a
   # consumer customises it — a frontend star was measured about to lose nine local
