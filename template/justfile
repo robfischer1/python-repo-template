@@ -1,7 +1,8 @@
 # justfile — Python star recipes.
 #
 # `just check` is the commit stage and `just gate` the push stage, both on the
-# cluster's Dagger engine — the same two calls the hooks make and the door runs,
+# cluster's Dagger engine — the same calls the door runs (the commit hook makes
+# the first; a push is graded by the pull's gate Job, not a hook),
 # so a tree that passes here passes there. `just` with no argument lists
 # everything else: the local conveniences (sync, types, test, image) a session
 # reaches for between commits.
@@ -16,8 +17,10 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 star := file_name(justfile_directory())
 
-# The two stages a commit and a push must pass (CA F15): `just check` at
-# commit, `just gate` at push. Both recipes live in stages.just, rendered by
+# The two stages (CA F15): `just check` at commit, from hooks/pre-commit.
+# `just gate` is no longer a push hook (2026-10-01): the pull's gate Job grades
+# a push, and the recipe stays for the blades and for running by hand. Both
+# recipes live in stages.just, rendered by
 # the spec-kit override template (foundry-stocks speckit/, laid beside this
 # file and re-laid at every session start); the hooks under hooks/ call them.
 # THIS FILE DEFINES NO `check` OR `gate` OF ITS OWN — a local recipe by either
