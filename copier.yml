@@ -137,7 +137,8 @@ _skip_if_exists:
   # .pre-commit-config.yaml is NOT here because it is GONE (CA F18, 2026-09-19).
   # It was copier's, create AND update, from 2026-08-16 — the one rendered file
   # an update rewrote — and nothing has run it since F15: hooks/pre-commit is
-  # `just check` and hooks/pre-push is `just gate`, tracked one-liners
+  # `just check` and hooks/pre-push a no-op (foundry-stocks v0.170.0: the
+  # pull's gate Job grades a push), tracked one-liners
   # foundry-stocks' copier task renders and points core.hooksPath at. A star
   # born before this keeps its copy until the migration at the foot of this
   # file deletes it (byte-identical to a rendering this template shipped, or it
