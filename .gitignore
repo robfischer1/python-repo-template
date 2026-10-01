@@ -9,3 +9,8 @@ htmlcov/
 
 # Gemini Code Reviews
 2026-07-09 Gemini * Code Review.md
+
+# Agent worktrees and scratch. The harness puts linked worktrees at
+# .claude/worktrees/<name>, inside the repo; declared here so the exclusion is a
+# property of THIS REPO and not of one workstation's ~/.gitignore_global.
+.claude/
