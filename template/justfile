@@ -4,7 +4,7 @@
 # cluster's Dagger engine — the same calls the door runs (the commit hook makes
 # the first; a push is graded by the pull's gate Job, not a hook),
 # so a tree that passes here passes there. `just` with no argument lists
-# everything else: the local conveniences (sync, types, test, image) a session
+# everything else: the local conveniences (sync, types, test) a session
 # reaches for between commits.
 #
 # Poured verbatim by copier (no .jinja suffix): just's {{ }} interpolation and
@@ -66,10 +66,6 @@ vuln:
 # Static analysis, scoped taint rules
 sast:
     LANG=C.UTF-8 LC_ALL=C.UTF-8 opengrep scan --config rules/sast --error .
-
-# Build the container exactly as CI does — catches Dockerfile drift `check` cannot
-image:
-    DOCKER_BUILDKIT=1 docker build --pull -t {{star}}:dev .
 
 # Regenerate CHANGELOG.md from the commit log.
 #

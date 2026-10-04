@@ -42,8 +42,4 @@ uv run pytest
 
 ## Container
 
-```bash
-docker build -t {{ service_name }} .
-docker run --rm -e PORT={{ port }} -p {{ port }}:{{ port }} {{ service_name }}
-```
 {%- endif %}
