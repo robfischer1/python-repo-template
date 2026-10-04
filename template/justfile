@@ -67,16 +67,6 @@ vuln:
 sast:
     LANG=C.UTF-8 LC_ALL=C.UTF-8 opengrep scan --config rules/sast --error .
 
-# Run the server from the working tree against the local environment.
-#
-# Python's fast path is running from source directly — there is no single-binary
-# overlay trick as there is for a Go or Rust star, because the container's
-# interpreter, site-packages and entrypoint all have to agree. Override MODULE
-# when the import package name differs from the repo name.
-[doc('Run the server from the working tree')]
-dev MODULE=replace(star, '-', '_') *ARGS:
-    uv run python -m {{MODULE}} {{ARGS}}
-
 # Build the container exactly as CI does — catches Dockerfile drift `check` cannot
 image:
     DOCKER_BUILDKIT=1 docker build --pull -t {{star}}:dev .
