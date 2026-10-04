@@ -124,7 +124,7 @@ absent = [".forgejo"]
 # `no-mutation-gate-by-default` and `mutation-gate-when-declared` (Test
 # Hardening C1) asserted that naming a critical module stamps a mutation stub
 # and that not naming one does not. Both asserted ONE artifact —
-# .forgejo/workflows/mutation.yml — and it left with the act-runner.
+# the mutation workflow stub — and it left with the act-runner.
 #
 # `critical_modules` now renders NOTHING: it is a copier question with no
 # output, and there is no mutation atom in foundry-tools to take the work over.
