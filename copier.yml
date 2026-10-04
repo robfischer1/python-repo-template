@@ -457,26 +457,14 @@ _tasks:
     when: "{{ _copier_operation == 'update' and mcp }}"
   - command: git init -q
     when: "{{ _copier_operation == 'copy' }}"
-  # Remotes follow the post-F27 fleet convention: ORIGIN IS THE OUREA DOOR, not
-  # Forgejo. The door is the authoritative git-remote gateway (it serves real
-  # fetch/pull since 2026-07-19 and gates landings via Serves); Forgejo stays as
-  # a FETCH-ONLY remote with its push side disabled by the `no_push_f27`
-  # sentinel, so a stray `git push forgejo` fails loudly instead of bypassing the
-  # gate. GitHub remains the push-mirror target.
-  # NOTE the door path takes a BARE repo name (no `rob/` prefix), unlike Forgejo.
-  # `git.notusmi.com` is the door's canonical hostname (A -> 100.93.64.106, the
-  # same host as the :8215 tailnet address, serving identical refs). Prefer it
-  # over the raw IP:port: it is HTTPS rather than plaintext, it survives an
-  # address change, and it is already the fleet's public git face.
-  # The remote repo must still be created on Forgejo first (push-to-create is
-  # disabled instance-wide); these only wire the local remotes to the convention.
-  # Idempotent (set-url-or-add): a re-strike into a reused workdir must converge,
-  # not die on "remote origin already exists" — the strike contract is idempotent.
+  # ORIGIN IS THE OUREA DOOR (git.notusmi.com), the authoritative git-remote
+  # gateway: it serves fetch/pull and gates landings. Forgejo is retired and no
+  # longer wired as a remote. GitHub remains the push-mirror target. NOTE the
+  # door path takes a BARE repo name (no `rob/` prefix); `git.notusmi.com` is
+  # the door's canonical hostname (HTTPS, and it survives an address change,
+  # unlike the raw :8215 tailnet address). Idempotent (set-url-or-add where the
+  # task is): a re-strike into a reused workdir must converge.
   - command: git remote set-url origin https://git.notusmi.com/{{ service_name }}.git 2>/dev/null || git remote add origin https://git.notusmi.com/{{ service_name }}.git
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: git remote set-url forgejo https://forgejo.notusmi.com/rob/{{ service_name }}.git 2>/dev/null || git remote add forgejo https://forgejo.notusmi.com/rob/{{ service_name }}.git
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: git remote set-url --push forgejo no_push_f27
     when: "{{ _copier_operation == 'copy' }}"
   - command: git remote set-url github https://github.com/robfischer1/{{ service_name }}.git 2>/dev/null || git remote add github https://github.com/robfischer1/{{ service_name }}.git
     when: "{{ _copier_operation == 'copy' }}"
@@ -513,10 +501,10 @@ _tasks:
   # unsafe feature: tasks`, exit 4, NOTHING RENDERED — it does not skip the tasks
   # and carry on. So without this flag the two calls below stop delivering the
   # spec-kit override set entirely, and a strike dies here. Trust means the
-  # template's own tasks run: foundry-stocks is ours, on this Forgejo, which is
+  # template's own tasks run: foundry-stocks is ours, on the Ourea door, which is
   # the same trust renovate's copier manager already grants (renovate-config
   # config.js, `copier: { ignoreScripts: false }`).
-  - command: uvx --from copier==9.17.2 copier copy --defaults --overwrite --trust https://forgejo.notusmi.com/foundry/foundry-stocks.git .
+  - command: uvx --from copier==9.17.2 copier copy --defaults --overwrite --trust https://git.notusmi.com/foundry/foundry-stocks.git .
     when: "{{ _copier_operation == 'copy' }}"
   # Spec-Driven Development scaffold. spec-kit init lays .specify/ (ps scripts +
   # core templates) and the claude speckit-* skills. NOTE: spec-kit no longer
