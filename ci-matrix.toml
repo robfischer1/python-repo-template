@@ -24,7 +24,6 @@ parse = ["**/*.toml", "**/*.json"]
 name = "star"
 answers = { project_name = "Gate Py", variant = "star", mcp = true }
 present = [
-  ".cerberus/gate.json",           # cerberus gate manifest: new stars opt in to gate/gate_manifest
   "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
   "src/gate_py/settings.py",
   # The op-contract trio, and they are pinned in the LIBRARY case too — which is

@@ -1,9 +1,0 @@
-{
-  "schema": 1,
-  "family": "python",
-  "checks": [
-    {"id": "mypy", "argv": ["uv", "run", "mypy", "src", "tests"]},
-    {"id": "pyright", "argv": ["uv", "run", "pyright"]},
-    {"id": "test", "argv": ["uv", "run", "pytest", "-q"], "env": {"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}}
-  ]
-}
