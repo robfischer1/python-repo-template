@@ -18,14 +18,23 @@
     must stay in the render set for the SDK, and skip_if_exists is what keeps
     the SDK's own content in it.
 
-  THE COST, stated rather than hidden: a FRESH `copier copy` with is_sdk=true
-  renders this file with imports of `.health` and `.settings`, which that answer
-  gates away. That render does not import. It is degenerate by construction —
-  is_sdk means "this repo IS stellar_core", and there is one of those and it
-  already exists, so the only real is_sdk path is `copier update` into a tree
-  that already owns this file. If a second SDK is ever born, that is the moment
-  to give this file a real `not is_sdk` body instead of this note.
+  THE COST THIS NOTE USED TO CARRY IS PAID. A fresh `copier copy` with
+  is_sdk=true used to render the runner below, importing `stellar_core` and the
+  `.health` / `.settings` modules that answer gates away — a file that cannot
+  import, by construction. The body is gated now instead of the path: the SDK
+  gets an inert stub that imports nothing, and `_skip_if_exists` still keeps the
+  SDK's own 273-line runner in place on `copier update`. The path stays in the
+  render set (that is what stops the deletion); only what it says changed.
 #}
+{%- if is_sdk %}
+"""Placeholder: the SDK owns its own heartbeat runner at this path.
+
+``is_sdk`` means this repo PROVIDES the op-contract, so it must not render a
+star's consumer of it (``from stellar_core import ...`` would import itself).
+The path is claimed anyway, so ``copier update`` cannot delete the runner the
+SDK keeps here; ``_skip_if_exists`` leaves that content alone.
+"""
+{%- else %}
 """Heartbeat publisher — emits {live, ready, metrics} to redpanda periodically.
 
 The async-worker arm of the universal op-contract: a background thread publishes
@@ -136,3 +145,4 @@ def start_heartbeat(
         interval_s,
     )
     return thread
+{%- endif %}
