@@ -43,10 +43,6 @@ _min_copier_version: "9.0.0"
 # carrying; the other is written up against pyproject.toml below, and both were
 # a deletion elsewhere that nobody propagated back to the prose asserting it.
 _skip_if_exists:
-  # cerberus gate manifest (.cerberus/gate.json): the checks `gate`/`gate_manifest`
-  # run, whole. Seeded once at birth so a new star opts in; then the star's — it
-  # is transcribed from this family's recipes and drifts with them by design.
-  - .cerberus/gate.json
   # star-owned: rendered once at birth, then the star's
   - README.md
   - CHANGELOG.md
