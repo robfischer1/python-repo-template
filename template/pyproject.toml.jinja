@@ -1,3 +1,56 @@
+{%- if tooling_only -%}
+# SPDX-FileCopyrightText: {{ year }} {{ author_name }}
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# TOOLING-ONLY RENDER (`tooling_only: true`). This repo's python is the tooling
+# around another language's product, and this file declares the second fact to
+# the python lane: there is an environment here to build and grade.
+#
+# copier owns this file only at birth: it is in `_skip_if_exists`, so no update
+# rewrites it. What this render drops from the service one, deliberately:
+#   - [tool.hatch.*] and the package list: there is no src/<package> to build.
+#   - stellar-core, pydantic-settings, forge-testkit, pyright, pytest-cov: the
+#     service skeleton's dependencies. Nothing in a script surface imports them,
+#     and forge-testkit in particular would switch on three atoms.
+#   - [tool.ruff], [tool.mypy], [tool.pyright]: the gate passes the fleet's
+#     ruleset with --config, which makes it ignore every table here, so a second
+#     copy could only disagree with the first.
+#
+# [build-system] IS KEPT, deliberately. It is what the gate reads as "the python
+# is this repo's subject", and it grades such a repo at the fleet's canonical
+# line length of 80. `[tool.uv] package = false` below only stops uv from trying
+# to build a distribution that does not exist.
+#
+# IT IS NOT A PACKAGE AND DOES NOT PUBLISH. This declares an ENVIRONMENT:
+# `uv run --all-extras <tool>` is what the lane builds for a repo with a
+# pyproject, and every tool an atom execs has to be in an extra or it answers
+# "Failed to spawn".
+[project]
+name = "{{ service_name }}-scripts"
+version = "0.0.0"
+description = "The environment {{ service_name }}'s python tooling is graded in"
+# 3.14 IS THE FLEET STANDARD, and the formatter's PEP 758 output
+# (`except A, B:`) is syntax an older interpreter refuses.
+requires-python = ">=3.14"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "mypy>=1.10",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+{%- else -%}
 [project]
 name = "{{ service_name }}"
 dynamic = ["version"]
@@ -294,4 +347,5 @@ forge-testkit = { index = "fleet" }
 # private schema. For local co-dev against an adjacent checkout, override with
 # `uv pip install -e ../mnemosyne_core` after `uv sync`.
 mnemosyne-core = { git = "https://github.com/robfischer1/mnemosyne_core.git", tag = "{{ core_version }}" }
+{%- endif %}
 {%- endif %}

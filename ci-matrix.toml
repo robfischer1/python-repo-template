@@ -109,6 +109,31 @@ absent = [
 ]
 
 [[case]]
+# TOOLING-ONLY: the whole point is what is NOT here. A rust (or any non-python)
+# repo shipping scripts wants the python lane's pyproject and nothing of the
+# service skeleton, and the only durable way to withhold the skeleton is a path
+# outside the render set (a hand-deleted file is poured back by the next
+# `copier update`). `src` and `tests` are gated WHOLE, so conftest.py (which
+# imports forge_testkit) and __init__.py go with them.
+name = "tooling-only"
+answers = { project_name = "Gate Py", variant = "binary", mcp = false, tooling_only = true }
+present = ["pyproject.toml", ".python-version"]
+absent = [
+  ".forgejo",
+  "src",
+  "tests",
+  "src/gate_py/__init__.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/health.py",
+  "src/gate_py/observability.py",
+  "src/gate_py/settings.py",
+  "src/gate_py/oneiroi.py",
+  "tests/test_smoke.py",
+  "tests/test_network_guard.py",
+  "tests/conftest.py",
+]
+
+[[case]]
 name = "sovereign-db"
 answers = { project_name = "Gate Py", mcp = true, sovereign_database = true }
 present = ["pyproject.toml", "src/gate_py/server.py"]

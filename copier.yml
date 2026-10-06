@@ -19,14 +19,15 @@ _min_copier_version: "9.0.0"
 # (ourea #109) and an unpinned toolchain resolves the same way, measured
 # 2026-09-13 against the cluster engine. A consumer's dagger.json declares no
 # sdk, which is how hephaestus's tree probe tells it from a module.
-# `_skip_if_exists` = every rendered path EXCEPT pyproject.toml, the one merge
-# seam left, and the file copier owns outright (dagger.json, per the note
-# above). This line used to name
-# .gitignore as a second seam while .gitignore sat in the list below —
-# corrected 2026-09-14, the same repair go-repo-template#7 made to its own
-# header. It scopes copier to what copier is good at: create-if-absent for the
-# star-owned stubs (README/docs/source) on birth, and a 3-way merge for the seam
-# on update — nothing else. A star builds out its README and src after
+# `_skip_if_exists` = every rendered path EXCEPT the file copier owns outright
+# (dagger.json, per the note above). It used to except pyproject.toml too, as
+# "the one merge seam left"; THE SEAM IS CLOSED (2026-09-30, the note on
+# pyproject.toml in the list below) and the header kept saying otherwise. An
+# earlier version of this line also named .gitignore as a second seam while
+# .gitignore sat in the list — corrected 2026-09-14, the same repair
+# go-repo-template#7 made to its own header. It scopes copier to what copier is
+# good at: create-if-absent for the star-owned stubs (README/docs/source/config)
+# on birth, and nothing else on update. A star builds out its README and src after
 # birth; a `copier update`/anneal must NOT 3-way-merge them (the fleet-wide
 # README conflict that failed the anneal arm closed). The foundry conformance
 # files (editorconfig, …) are skipped here so update never
@@ -205,6 +206,33 @@ variant:
 is_sdk:
   type: bool
   help: "This repo IS the stellar_core SDK — it PROVIDES the op-contract rather than consuming it."
+  default: false
+
+# TOOLING-ONLY: this repo's python is the tooling around another language's
+# product (hook scripts, probes, a deck's command surface) and it wants the
+# fleet's python LANE, not the service skeleton. False (the default) is every
+# existing subscriber, unchanged: TWENTY-ONE repos are stamped from this
+# template, and any other default turns adding a question into a fleet
+# migration. True gates `src/` and `tests/` whole and renders a pyproject that
+# declares an environment (and a [build-system], which is what grades the python
+# at the canonical width) rather than a distribution.
+#
+# WHY A QUESTION AND NOT A DELETION. A repo in that position used to render the
+# skeleton and delete it by hand, and copier's next `update` put it all back:
+# `_skip_if_exists` skips a file that EXISTS, and a deleted one does not. The
+# only durable form is a path that is not in the render set at all — which is
+# what a filename gate does, and the same mechanism keeps a *rendered-then-
+# removed* file from ever being resurrected. It is NOT `variant` (`binary` does
+# not gate the skeleton since 2026-09-25) and NOT `is_sdk` (that says "this repo
+# IS stellar_core").
+#
+# tests/ is gated WHOLE, conftest.py and __init__.py included, not just the two
+# test files: conftest.py is the autouse no-network guard and imports
+# forge_testkit, which the tooling-only pyproject deliberately does not declare.
+# A tooling repo owns its own tests/.
+tooling_only:
+  type: bool
+  help: "Python here is tooling around another language's product: lay the lane's config, not the service skeleton."
   default: false
 
 # Where the package lives, for the publish lane. "." for a single-package repo.
@@ -406,7 +434,10 @@ _tasks:
   # correctly-stamped header. Append it iff absent (idempotent; [0-9]{4} == the
   # template's \d{4}, spelt without a backslash to survive YAML->shell->python).
   - command: python -c "import pathlib; p=pathlib.Path('pyproject.toml'); t=p.read_text(encoding='utf-8'); s='[tool.ruff.lint.flake8-copyright]'; body=s+chr(10)+'notice-rgx = '+chr(39)+'(?i)SPDX-FileCopyrightText:.*[0-9]{4}'+chr(39)+chr(10); p.write_text(t if s in t else t.rstrip()+chr(10)+chr(10)+body, encoding='utf-8')"
-    when: "{{ _copier_operation == 'update' }}"
+    # `not tooling_only`: that render carries no [tool.ruff] at all (the gate
+    # passes its own ruleset), so this would append a lone orphan table to the
+    # star's pyproject on every update.
+    when: "{{ _copier_operation == 'update' and not tooling_only }}"
   # THE FLAME C4 RELOCATION IS GONE, and so is what it relocated to. It moved
   # `infra/terraform.tfvars` to `{star}.tfvars` at root on update, explaining itself
   # as "rob/infra harvests it as catalog/{star}.tfvars". IT DOES NOT, and has not
