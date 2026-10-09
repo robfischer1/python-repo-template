@@ -639,9 +639,10 @@ _tasks:
   # doubled that way loses the copy above its block on the next run
   # (go-repo-template#9311). Cast always seeds, so no cast-born star was hit.
   #
-  # CHANGING template/.gitignore? This task carries it to NEW stars only. Born
-  # stars need a bumped `_migrations` entry — copy the v0.32.0 one at the bottom
-  # of this file and change its version.
+  # CHANGING gitignore.rules? Mirror it into template/.gitignore
+  # (`pytest test_gitignore_sync.py` fails on drift). This task carries it to
+  # NEW stars only. Born stars need a bumped `_migrations` entry — copy the
+  # newest gitignore one (v0.39.1) at the bottom of this file and change its version.
   - command: |
       python3 - "{{ _copier_conf.src_path }}/gitignore.rules" <<'GITIGNORE_MERGE'
       import pathlib, sys
@@ -940,6 +941,41 @@ _migrations:
   # path, same as the justfile sweeps above. Same payload as the copy task,
   # deliberately — one merge, two entry points.
   - version: v0.32.0
+    when: "{{ _stage == 'after' }}"
+    command: |
+      python3 - "{{ _copier_conf.src_path }}/gitignore.rules" <<'GITIGNORE_MERGE'
+      import pathlib, sys
+      OPEN = "# >>> python-repo-template — managed block, edits here are overwritten >>>"
+      CLOSE = "# <<< python-repo-template <<<"
+      rules = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").rstrip("\n")
+      block = f"{OPEN}\n{rules}\n{CLOSE}\n"
+      p = pathlib.Path(".gitignore")
+      cur = p.read_text(encoding="utf-8") if p.exists() else ""
+      if OPEN in cur and CLOSE in cur:
+          head, rest = cur.split(OPEN, 1)
+          _, tail = rest.split(CLOSE, 1)
+          if head.strip("\n") == rules:
+              head = ""
+          new = head + block + tail.lstrip("\n")
+      elif cur.strip("\n") == rules:
+          new = block
+      else:
+          new = (cur.rstrip("\n") + "\n\n" if cur.strip() else "") + block
+      if new == cur:
+          print("copier: .gitignore managed block already current")
+          sys.exit(0)
+      p.write_text(new, encoding="utf-8")
+      print("copier: .gitignore <- template rules merged (managed block)")
+      print("copier: .specify/ or .claude/ already TRACKED? a rule does not evict")
+      print("copier: what is in the index - `git rm -r --cached .specify .claude`")
+      GITIGNORE_MERGE
+
+  # RE-DELIVER THE .gitignore BLOCK — the v0.32.0 migration only reaches stars born
+  # before v0.32.0. F5a then changed the rules (`*.log` added where it was missing;
+  # a line reworded) without a new migration, so every star already past v0.32.0 kept
+  # the old block. Same payload as the v0.32.0 entry, deliberately: the merge replaces
+  # the managed block in place and reports "already current" when nothing changed.
+  - version: v0.39.1
     when: "{{ _stage == 'after' }}"
     command: |
       python3 - "{{ _copier_conf.src_path }}/gitignore.rules" <<'GITIGNORE_MERGE'
