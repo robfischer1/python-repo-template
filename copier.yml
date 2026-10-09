@@ -128,6 +128,10 @@ _skip_if_exists:
   # go-repo-template 2026-09-11 (#7) — the conflict is copier's, not Go's. The
   # rules reach a repo through the MERGE TASK at the end of `_tasks` instead.
   - .gitignore
+  # .furnace/pin.toml: declarative since F5a (template/.furnace/pin.toml.jinja), so
+  # a `--skip-tasks` stamp commits it. Born once, then the star's: a repoint of
+  # the kit is a deliberate edit, never a template update.
+  - .furnace/pin.toml
   - cliff.toml
   - justfile
   - LICENSES/**
@@ -382,14 +386,6 @@ interstellar:
 # runs on `copier update` so a template pyproject change never leaves a stale
 # lock. copy leaves a ready git repo with a synced env + installed hooks.
 _tasks:
-  # Normalize the copier-generated answers file to end with exactly one newline.
-  # Belt-and-braces behind the `|trim` in the answers-file jinja: the raw render
-  # used to end with TWO newlines (to_nice_yaml's own + the template's final one),
-  # which failed the end-of-file-fixer hook of the day -> a red gate on the
-  # first PR of every stamped repo. The jinja now renders exactly one; this task
-  # keeps a task-skipping/untrusted render from ever regressing a trusted one.
-  # Ungated: runs on BOTH copy and update.
-  - command: python -c "import pathlib; p=pathlib.Path('.copier-answers.yml'); p.write_text(p.read_text(encoding='utf-8').rstrip()+chr(10), encoding='utf-8')"
   # Stamp SPDX/REUSE copyright headers on the star's OWN source that predates the
   # ruff CPY001 requirement (template v0.16.2+), so a reconcile lands green.
   # Inline python, NOT `reuse`: the anneal runs copier under git_env() (which
@@ -588,7 +584,9 @@ _tasks:
   # own binary now and the composer no longer touches a working tree. Three
   # steps, each the binary that owns it:
   #   pin   — `.furnace/pin.toml` is TRACKED config the fleet walk (`temper`)
-  #           reads, not a lay, so it stays furnace's;
+  #           reads, not a lay. It is a declarative template file now
+  #           (template/.furnace/pin.toml.jinja), so a task-skipping stamp
+  #           commits it and no `furnace pin` step remains here;
   #   die   — the kit's standalone tree + its disposition column, rendered
   #           into a scratch dir (never over the live tree);
   #   order — gavel lays the die, writes the deploy manifest and the base
@@ -600,7 +598,7 @@ _tasks:
   # `|| exit 1`, never a swallow: the scratch dir is removed on BOTH paths and
   # the lay's own status is what the task answers with.
   - command: >-
-      bash -c 'kit="code-repo-sdd"; furnace pin . --kit "$kit" || exit 1;
+      bash -c 'kit="code-repo-sdd";
       die="$(mktemp -d)" || exit 1;
       furnace die "$kit" --dest "$die" && gavel order . --from "$die" --hammer; rc=$?;
       rm -rf "$die"; exit $rc'
@@ -645,7 +643,7 @@ _tasks:
   # stars need a bumped `_migrations` entry — copy the v0.32.0 one at the bottom
   # of this file and change its version.
   - command: |
-      python3 - "{{ _copier_conf.src_path }}/template/.gitignore" <<'GITIGNORE_MERGE'
+      python3 - "{{ _copier_conf.src_path }}/gitignore.rules" <<'GITIGNORE_MERGE'
       import pathlib, sys
       OPEN = "# >>> python-repo-template — managed block, edits here are overwritten >>>"
       CLOSE = "# <<< python-repo-template <<<"
@@ -944,7 +942,7 @@ _migrations:
   - version: v0.32.0
     when: "{{ _stage == 'after' }}"
     command: |
-      python3 - "{{ _copier_conf.src_path }}/template/.gitignore" <<'GITIGNORE_MERGE'
+      python3 - "{{ _copier_conf.src_path }}/gitignore.rules" <<'GITIGNORE_MERGE'
       import pathlib, sys
       OPEN = "# >>> python-repo-template — managed block, edits here are overwritten >>>"
       CLOSE = "# <<< python-repo-template <<<"
