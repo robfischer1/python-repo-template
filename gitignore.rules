@@ -60,6 +60,6 @@ CLAUDE.md
 # at SessionStart and unlinks it at SessionEnd; a dead pid's lock is reaped on the
 # next read. Per-machine runtime state keyed to a live pid — worthless to any other
 # clone, meaningless once the process exits. The machine-global excludes file carries
-# this for clones that already exist; the template is what makes a struck star carry
+# this for clones that already exist; the template is what makes a newly stamped repo carry
 # it on its own.
 .agent-locks/
