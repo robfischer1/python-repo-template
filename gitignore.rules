@@ -1,4 +1,3 @@
-# >>> python-repo-template — managed block, edits here are overwritten >>>
 # Python
 __pycache__/
 *.py[cod]
@@ -64,4 +63,3 @@ CLAUDE.md
 # this for clones that already exist; the template is what makes a struck star carry
 # it on its own.
 .agent-locks/
-# <<< python-repo-template <<<
