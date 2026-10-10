@@ -18,10 +18,10 @@ the prompts in `copier.yml`, and gets back either:
   service machinery.
 
 Role in the fleet: this is the genesis point for every new Forge Python
-repo. It lays the pure-code body; the final `_task` renders the kit (`furnace
-die`) and lays it (`gavel order`) for the `.claude/` AI-governance layer. Copier owns repo
-creation; furnace owns governance — deliberately decoupled (see the header
-comment block in `copier.yml`).
+repo. It lays the pure-code body. Copier owns repo creation; governance
+(`.claude/`, `AGENTS.md`) is not a copier task — it is cast on the
+foundry-stocks landing and laid onto a host by gavel (see the header comment
+block in `copier.yml`).
 
 **When editing this repo**, you are editing the *generator*, not a service.
 There is nothing to `uv sync` or `pytest` here directly — see Build/Test/Run
@@ -176,9 +176,9 @@ in order): normalize `.copier-answers.yml`'s trailing newline → `git init`
 → `uv lock` (also runs on `update`, unconditionally)
 → `specify init --here --force --integration claude
 --script ps --ignore-agent-tools` (spec-kit scaffold) → `specify extension
-disable agent-context` → `furnace die code-repo-sdd` + `gavel order --hammer` → `specify
+disable agent-context` → `specify
 preset resolve speckit.plan` (verification step). A failure anywhere rolls
-back the whole stamp (copier task semantics) — no half-governed repo is
+back the whole stamp (copier task semantics) — no half-scaffolded repo is
 left behind.
 
 ## Conventions and gotchas
@@ -208,17 +208,15 @@ left behind.
 - **The rendered README (`template/README.md.jinja`) legitimately contains
   Jinja placeholders** — per the task framing for this doc, those are
   intentional and must stay unresolved; do not "fix" them.
-- **`furnace die`, `gavel order` and `specify init` are hard dependencies of `_tasks`.**
-  They must be on `PATH` (`furnace`, `gavel`) with `$FURNACE_SOURCE` set, and
-  `specify` (spec-kit CLI) on `PATH`, for a real `copier copy` to complete.
-  Neither is available inside a template-repo-only checkout — this is why
+- **`specify init` is a hard dependency of `_tasks`.**
+  `specify` (spec-kit CLI) must be on `PATH` for a real `copier copy` to complete.
+  It is not available inside a template-repo-only checkout — this is why
   template validation renders-and-inspects rather than running the full
   live `_tasks` pipeline unless you actually have those tools installed.
 - **Governance is deliberately NOT in this repo.** There is no `AGENTS.md`
   or `.claude/` here — by design (see Overview). Don't add one; the
-  generated repo gets its governance from `furnace die` + `gavel order`, laid fresh
-  each time from the hub kit (`code-repo-sdd`), not copied from this
-  template.
+  generated repo carries none either: its sessions load the ~/Forge
+  CLAUDE.md/AGENTS.md that gavel lays above it, not anything copied from this template.
 - **`stellar-core` and `mnemosyne-core`** resolve from the fleet's own
   PyPI (devpi's `fleet/prod` at `packages.notusmi.com/pypi/fleet/prod/+simple/`)
   and a public git tag pin respectively — the former needs network access to
@@ -236,11 +234,9 @@ left behind.
 
 ## Related repos
 
-- **`furnace`** — renders the `.claude/` AI-governance layer's die (`furnace
-  die code-repo-sdd`, laid by `gavel order`), the final `_task`. Owns
-  `furnace/docs/service-repo-standard.md`, the standard this template
-  implements. This template repo does not vendor or duplicate furnace's
-  kit content — it only invokes the CLI.
+- **`furnace`** — owns `furnace/docs/service-repo-standard.md`, the standard
+  this template implements. Governance is not laid by a `_task`; this
+  template does not vendor or invoke furnace's kit content.
 - **`constellation`** — owns the `StarManifest` schema that
   `star.toml.jinja` renders against, and `stellar_core.build_admission_input`
   used by `admit.yml`.

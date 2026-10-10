@@ -5,9 +5,8 @@ container-ready Forge Python project — either a FastMCP constellation service
 or a plain library/CLI, your choice at scaffold time. Realizes the Forge
 service-repo standard (`furnace/docs/service-repo-standard.md`). This repo is
 the template only — it generates other repos, it does not run as a service
-itself. Pure code; the AI/governance layer (`.claude/`, `AGENTS.md`) is rendered
-as a kit die and laid into the generated repo separately by gavel (decoupled by
-design).
+itself. Pure code; the AI/governance layer (`.claude/`, `AGENTS.md`) is not a copier
+task: it is cast on the foundry-stocks landing and laid onto a host by gavel.
 
 ## Use
 
@@ -20,9 +19,7 @@ copier copy /path/to/python-repo-template my-new-service
 Copier asks a set of questions (see below), then runs `_tasks`: `git init`,
 wire the remotes (`origin` = the Ourea door, `forgejo` fetch-only, `github` the
 push mirror — see [Remotes](#remotes)), `uv sync`, run `specify init`
-(spec-kit scaffold), lay the
-governance layer (`furnace die` renders the `code-repo-sdd` kit, `gavel order`
-lays it; `furnace` is being retired, see foundry-stocks Nomos), and finally merge this template's ignore rules into `.gitignore` (see
+(spec-kit scaffold), and finally merge this template's ignore rules into `.gitignore` (see
 [the managed block](#the-gitignore-managed-block)). A failure in any task rolls
 back the whole stamp — there is no half-scaffolded repo.
 
@@ -118,7 +115,7 @@ already born need a bumped `_migrations` entry in `copier.yml` — copy the
 ## Structure
 
 ```
-copier.yml                    # questions + _tasks (git init, uv sync, furnace die + gavel order, ...)
+copier.yml                    # questions + _tasks (git init, uv sync, specify init, ...)
 template/                      # _subdirectory — everything below is rendered into the new repo
   pyproject.toml.jinja
   star.toml.jinja
@@ -191,7 +188,7 @@ reaches only NEW stamps unless it ships with a versioned `_migrations` entry at
 the `after` stage.
 
 It renders with `--trust --skip-tasks --vcs-ref=HEAD`, so no task runs (no
-`git init`, no `uv sync`, no `furnace die` / `gavel order`) and it renders **your working
+`git init`, no `uv sync`) and it renders **your working
 commit** rather than the newest tag — copier resolves a git template to its
 latest tag by default, which would otherwise gate the last release instead of
 your change.
@@ -208,7 +205,7 @@ cd /tmp/smoke-test && uv sync --extra dev && uv run pytest
 
 Genesis point for every new Forge Python repo — plain library/CLI or
 constellation MCP star. Copier owns repo creation (this template); the hub
-owns the `.claude/` AI-governance layer, laid by the final `_task`
-(`furnace die` then `gavel order`, kit `code-repo-sdd`). See
+does not own the `.claude/` AI-governance layer: it is cast on the
+foundry-stocks landing and laid onto a host by gavel. See
 `furnace/docs/service-repo-standard.md` for the standard this template
 realizes.
