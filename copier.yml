@@ -542,8 +542,9 @@ _tasks:
   # (both measured on 0.12.18) — which is why the re-lay task follows.
   - command: specify init --here --force --integration claude --script ps --ignore-agent-tools
     when: "{{ _copier_operation == 'copy' }}"
-  # Cede CLAUDE.md to governance: spec-kit's agent-context (the <!-- SPECKIT --> markers)
-  # fights the CLAUDE.md @AGENTS.md shim that gavel lays.
+  # Keep spec-kit's agent-context (the <!-- SPECKIT --> markers) from writing a repo
+  # CLAUDE.md: the repo carries none, and its sessions load the ~/Forge
+  # CLAUDE.md/AGENTS.md that gavel lays above it.
   # Some spec-kit builds ship the extension already-uninstalled (`disable` then
   # errors "not installed" and would fail the whole strike); a blanket `|| true`
   # used to swallow THAT case, but it just as quietly swallowed a real `disable`
@@ -592,7 +593,7 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   # THE .gitignore MERGE — go-repo-template#7, ported (hephaestus#8150). Runs
   # LAST, after every other task has laid down the surfaces these rules are
-  # about (.specify/ from `specify init`, .claude/ from spec-kit and the host's gavel lay).
+  # about (.specify/ from `specify init`, .claude/ from spec-kit).
   #
   # `.gitignore` has two writers and neither is wrong: conform's birth seed, and
   # this template's rules. `_skip_if_exists` lets the seed win (see the note on

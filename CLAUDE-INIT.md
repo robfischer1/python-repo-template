@@ -215,8 +215,8 @@ left behind.
   live `_tasks` pipeline unless you actually have those tools installed.
 - **Governance is deliberately NOT in this repo.** There is no `AGENTS.md`
   or `.claude/` here — by design (see Overview). Don't add one; the
-  generated repo gets its governance from the foundry-stocks cast, laid by gavel,
-  not copied from this template.
+  generated repo carries none either: its sessions load the ~/Forge
+  CLAUDE.md/AGENTS.md that gavel lays above it, not anything copied from this template.
 - **`stellar-core` and `mnemosyne-core`** resolve from the fleet's own
   PyPI (devpi's `fleet/prod` at `packages.notusmi.com/pypi/fleet/prod/+simple/`)
   and a public git tag pin respectively — the former needs network access to
