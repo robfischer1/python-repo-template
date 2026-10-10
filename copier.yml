@@ -4,8 +4,8 @@
 # `mcp = false` -> a plain Python library / CLI: the same QA/CI/lint spine,
 #                 no service machinery. Realizes the service-repo standard:
 # furnace/docs/service-repo-standard.md. copier lays the pure-code body; the
-# final `_task` composes the governance kit (`code-repo-sdd`) with furnace and
-# lays it with gavel — copier owns repo creation, the kit owns `.claude/`.
+# governance (`.claude/`, AGENTS.md) is not a copier task: it is cast on the
+# foundry-stocks landing and laid onto a host by gavel.
 
 _subdirectory: template
 _min_copier_version: "9.0.0"
@@ -335,8 +335,8 @@ critical_modules:
 # two things recentralization split apart -- a star no longer owns its `/infra`
 # (the tofu ROOTS live in rob/infra now, so this template scaffolds NO infra/),
 # but every mcp star's build/deploy IS tofu-managed from the foundry core (the F5
-# managed-CI plane), so furnace pours only the PR gates (code-repo-sdd-
-# decentralized). That kit choice now rides `mcp` alone (see the last _task).
+# managed-CI plane), so governance is cast from foundry-stocks and laid by gavel,
+# not by a copier task.
 
 author_name:
   type: str
@@ -542,8 +542,8 @@ _tasks:
   # (both measured on 0.12.18) — which is why the re-lay task follows.
   - command: specify init --here --force --integration claude --script ps --ignore-agent-tools
     when: "{{ _copier_operation == 'copy' }}"
-  # Cede CLAUDE.md to furnace: spec-kit's agent-context (the <!-- SPECKIT --> markers)
-  # fights furnace's CLAUDE.md @AGENTS.md shim, which every order re-lays.
+  # Cede CLAUDE.md to governance: spec-kit's agent-context (the <!-- SPECKIT --> markers)
+  # fights the CLAUDE.md @AGENTS.md shim that gavel lays.
   # Some spec-kit builds ship the extension already-uninstalled (`disable` then
   # errors "not installed" and would fail the whole strike); a blanket `|| true`
   # used to swallow THAT case, but it just as quietly swallowed a real `disable`
@@ -577,32 +577,6 @@ _tasks:
   # replays an index-based diff that deletes what it cannot see (measured).
   - command: rm -f .claude/skills/speckit-plan/SKILL.md && uvx --from copier==9.17.2 copier recopy --defaults --overwrite --trust -a .copier-answers.speckit.yml
     when: "{{ _copier_operation == 'copy' }}"
-  # Lay the governance kit (the .claude/ AI layer) LAST, in the post-cut shape:
-  # furnace COMPOSES, gavel LAYS (The Role Cut R2, 2026-09-11). This used to be
-  # one verb — `furnace ignite . --hammer --kit K`, pin + compose + lay in one
-  # process — and that verb is the duplicate the cut retired: the applier is its
-  # own binary now and the composer no longer touches a working tree. Three
-  # steps, each the binary that owns it:
-  #   pin   — `.furnace/pin.toml` is TRACKED config the fleet walk (`temper`)
-  #           reads, not a lay. It is a declarative template file now
-  #           (template/.furnace/pin.toml.jinja), so a task-skipping stamp
-  #           commits it and no `furnace pin` step remains here;
-  #   die   — the kit's standalone tree + its disposition column, rendered
-  #           into a scratch dir (never over the live tree);
-  #   order — gavel lays the die, writes the deploy manifest and the base
-  #           column exactly as the pour did, and receipts what it flattens.
-  # Runs after `specify init` so the laid skills, rules and hooks land over the
-  # scaffold. --hammer: a born-fresh scaffold has no local edits to protect.
-  # Needs `furnace` AND `gavel` on PATH + $FURNACE_SOURCE set; a failure rolls
-  # back the whole stamp (copier task semantics) — no half-governed repo.
-  # `|| exit 1`, never a swallow: the scratch dir is removed on BOTH paths and
-  # the lay's own status is what the task answers with.
-  - command: >-
-      bash -c 'kit="code-repo-sdd";
-      die="$(mktemp -d)" || exit 1;
-      furnace die "$kit" --dest "$die" && gavel order . --from "$die" --hammer; rc=$?;
-      rm -rf "$die"; exit $rc'
-    when: "{{ _copier_operation == 'copy' }}"
   # NOTE: a star no longer scaffolds `/infra` (Flame C4). This used to add "the tofu
   # roots live in rob/infra, which harvests the sovereign shape from the star's
   # {star}.tfvars" — BOTH HALVES ARE NOW FALSE. OpenTofu left rob/infra on
@@ -618,7 +592,7 @@ _tasks:
     when: "{{ _copier_operation == 'copy' }}"
   # THE .gitignore MERGE — go-repo-template#7, ported (hephaestus#8150). Runs
   # LAST, after every other task has laid down the surfaces these rules are
-  # about (.specify/ from `specify init`, .claude/ from gavel).
+  # about (.specify/ from `specify init`, .claude/ from spec-kit and the host's gavel lay).
   #
   # `.gitignore` has two writers and neither is wrong: conform's birth seed, and
   # this template's rules. `_skip_if_exists` lets the seed win (see the note on
