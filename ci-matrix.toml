@@ -24,7 +24,6 @@ parse = ["**/*.toml", "**/*.json"]
 name = "star"
 answers = { project_name = "Gate Py", variant = "star", mcp = true }
 present = [
-  ".furnace/pin.toml",             # F5a: declarative, so a --skip-tasks stamp commits it
   ".gitignore",                    # F5a: the pre-wrapped managed block
   "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
   "src/gate_py/settings.py",
@@ -54,7 +53,6 @@ absent = [".forgejo", "src/gate_py/__main__.py"]
 name = "library"
 answers = { project_name = "Gate Py", variant = "library", mcp = false }
 present = [
-  ".furnace/pin.toml",             # F5a: declarative, so a --skip-tasks stamp commits it
   ".gitignore",                    # F5a: the pre-wrapped managed block
   "pyproject.toml",
   "src/gate_py/__init__.py",
@@ -88,7 +86,6 @@ absent = [
 name = "is-sdk"
 answers = { project_name = "Gate Py", variant = "library", mcp = false, is_sdk = true }
 present = [
-  ".furnace/pin.toml",             # F5a: declarative, so a --skip-tasks stamp commits it
   ".gitignore",                    # F5a: the pre-wrapped managed block
   "pyproject.toml",
   # THE ONE PRODUCT MODULE THE SDK STILL RECEIVES, and it is pinned PRESENT on
@@ -123,7 +120,7 @@ absent = [
 # imports forge_testkit) and __init__.py go with them.
 name = "tooling-only"
 answers = { project_name = "Gate Py", variant = "binary", mcp = false, tooling_only = true }
-present = [".furnace/pin.toml", ".gitignore", "pyproject.toml", ".python-version"]
+present = [".gitignore", "pyproject.toml", ".python-version"]
 absent = [
   ".forgejo",
   "src",
@@ -142,13 +139,13 @@ absent = [
 [[case]]
 name = "sovereign-db"
 answers = { project_name = "Gate Py", mcp = true, sovereign_database = true }
-present = [".furnace/pin.toml", ".gitignore", "pyproject.toml", "src/gate_py/server.py"]
+present = [".gitignore", "pyproject.toml", "src/gate_py/server.py"]
 absent = [".forgejo"]
 
 [[case]]
 name = "core-backed"
 answers = { project_name = "Gate Py", mcp = true, core_backed = true }
-present = [".furnace/pin.toml", ".gitignore", "pyproject.toml", "src/gate_py/server.py"]
+present = [".gitignore", "pyproject.toml", "src/gate_py/server.py"]
 absent = [".forgejo"]
 
 # THE TWO MUTATION CASES ARE GONE, AND THEIR ABSENCE IS THE FINDING.
