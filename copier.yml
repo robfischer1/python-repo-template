@@ -128,10 +128,6 @@ _skip_if_exists:
   # go-repo-template 2026-09-11 (#7) — the conflict is copier's, not Go's. The
   # rules reach a repo through the MERGE TASK at the end of `_tasks` instead.
   - .gitignore
-  # .furnace/pin.toml: declarative since F5a (template/.furnace/pin.toml.jinja), so
-  # a `--skip-tasks` stamp commits it. Born once, then the star's: a repoint of
-  # the kit is a deliberate edit, never a template update.
-  - .furnace/pin.toml
   - cliff.toml
   - justfile
   - LICENSES/**
