@@ -10,7 +10,7 @@
 # copier owns this file only at birth: it is in `_skip_if_exists`, so no update
 # rewrites it. What this render drops from the service one, deliberately:
 #   - [tool.hatch.*] and the package list: there is no src/<package> to build.
-#   - stellar-core, pydantic-settings, forge-testkit, pyright, pytest-cov: the
+#   - pydantic-settings, forge-testkit, pyright, pytest-cov: the
 #     service skeleton's dependencies. Nothing in a script surface imports them,
 #     and forge-testkit in particular would switch on three atoms.
 #   - [tool.ruff], [tool.mypy], [tool.pyright]: the gate passes the fleet's
@@ -65,24 +65,6 @@ classifiers = [
 ]
 dependencies = [
     "pydantic-settings>=2.0",
-{%- if not is_sdk %}
-    # The op-contract ({live, ready, metrics}), the Nyx admission client, and the
-    # Hemera OTLP helper come from the stellar_core SDK — pre-baked into the
-    # stellar_core base image (warm builds), resolved from the Forgejo PyPI for
-    # local dev. The CI admission gate is still a CI-time tool pulled ephemerally
-    # by the door's admission lane, not a project dependency.
-    #
-    # GATED ON `is_sdk`, NOT ON `variant`, because those are different questions.
-    # This read `variant == 'star'`, gated with the files that import it, reasoned
-    # as "a library carrying this dependency would carry an SDK nothing in it
-    # uses". Measured 2026-09-25 that reasoning inverted: this template has TWO
-    # subscribers and BOTH are libraries, so the gate withheld the op-contract
-    # from 100% of the population rather than from a minority — and one of the two
-    # IS the SDK, where the dependency would be a SELF-dependency. What the gate
-    # was reaching for is "does this repo CONSUME the op-contract", which is true
-    # of every repo except the one that PROVIDES it.
-    "stellar-core>=1.0.3",
-{%- endif %}
 {%- if mcp %}
     # Pinned to a minor: mcp's transport-security defaults (DNS-rebinding) shift
     # across minors, and an unpinned floor let stars stamped days apart resolve
@@ -314,12 +296,12 @@ markers = [
 source = ["src"]
 branch = true
 
-# The stellar_core SDK lives on the fleet's own PyPI — devpi's `fleet/prod`
-# at packages.notusmi.com since 2026-09-18 (infra packages.yaml, master-plan
-# "Transparent Cache — Nexus Retired"); before that Nexus's pypi-hosted
-# (2026-09-10, infra#351), before that Forgejo's. The base image bakes the SDK
-# in, so the Docker build resolves it offline; this index is for local dev +
-# lock gen.
+# The fleet's own PyPI — devpi's `fleet/prod` at packages.notusmi.com since
+# 2026-09-18 (infra packages.yaml, master-plan "Transparent Cache — Nexus
+# Retired") — serves the names only this fleet publishes (forge-testkit, and
+# mnemosyne-core for a core-backed star). The op-contract no longer comes from
+# it: the stellar_core SDK retired on 2026-10-18 and health.py / heartbeat.py
+# carry their own {live, ready, metrics} shape.
 #
 # AN EXTRA INDEX, NEVER A MERGE WITH pypi.org, deliberately: a merged index
 # would reintroduce the exact failure the pins below exist to prevent — a
@@ -336,7 +318,6 @@ url = "https://packages.notusmi.com/pypi/fleet/prod/+simple/"
 explicit = true
 
 [tool.uv.sources]
-stellar-core = { index = "fleet" }
 # forge-testkit is published to the fleet's own PyPI only. Without this pin uv falls
 # through to the default index, where the name is unclaimed — the same class of
 # failure that resolved internal `pontus` to a public Flask/S3 package of the

@@ -97,7 +97,7 @@ already born need a bumped `_migrations` entry in `copier.yml` — copy the
   `.dockerignore`, and a Compose stack (shape depends on `core_backed` /
   `sovereign_database`)
 - Born-with operational surface: `health.py` (the `{live, ready, metrics}`
-  op-contract from `stellar_core`), `observability.py` (OTLP wiring to
+  op-contract, local and stdlib-only since the `stellar_core` SDK retired), `observability.py` (OTLP wiring to
   Hemera), `oneiroi.py` (memory-emission stub)
 - A born-conformant `star.toml` — the constellation `StarManifest` every
   admission gate reads
