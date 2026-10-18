@@ -49,8 +49,8 @@ Inside `template/`:
   the canonical Forge lint/type/test policy: ruff `select = ["ALL"]` with a
   documented ignore list, mypy strict, pyright strict, pytest+coverage. Adds
   `mcp[cli]` when `mcp`, `mnemosyne-core` when `core_backed`, `psycopg`/
-  `pgvector` extras when `sovereign_database`. Resolves `stellar-core` from
-  a private Forgejo PyPI index (`[[tool.uv.index]]`).
+  `pgvector` extras when `sovereign_database`. Resolves `forge-testkit` from
+  the fleet's own PyPI index (`[[tool.uv.index]]`).
 - **`star.toml.jinja`** — the constellation `StarManifest` (validated by
   `constellation.manifest.StarManifest`, a pydantic model in the sibling
   `constellation` repo). Every stamped repo is a *candidate star*; `admit.yml`
@@ -63,10 +63,11 @@ Inside `template/`:
     `{PACKAGE_NAME}_`. Adds `host`/`port`/`kafka_bootstrap`/`heartbeat_topic`
     when `mcp`.
   - `health.py.jinja` — the born-with `{live, ready, metrics}` op-contract
-    from the `stellar_core` SDK. `McpOpsAdapter` when `mcp`, else
-    `HttpOpsAdapter` (z-pages). Stub health, meant to be wired to real probes.
+    as a local stdlib `HealthState` (with `introspect()`); it came from the
+    `stellar_core` SDK until that retired on 2026-10-18. Stub health, meant
+    to be wired to real probes.
   - `heartbeat.py.jinja` — daemon thread publishing `HealthState` to redpanda
-    (Redpanda) via `AsyncHeartbeatPublisher` every 30s. `confluent_kafka` is
+    (Redpanda) via its own `beat()` payload builder every 30s. `confluent_kafka` is
     lazy-imported (optional `kafka` extra); missing extra/broker degrades to
     "no heartbeat," never crashes the server.
   - `observability.py.jinja` — OTLP wiring stub, resolves the Hemera
@@ -217,7 +218,7 @@ left behind.
   or `.claude/` here — by design (see Overview). Don't add one; the
   generated repo carries none either: its sessions load the ~/Forge
   CLAUDE.md/AGENTS.md that gavel lays above it, not anything copied from this template.
-- **`stellar-core` and `mnemosyne-core`** resolve from the fleet's own
+- **`forge-testkit` and `mnemosyne-core`** resolve from the fleet's own
   PyPI (devpi's `fleet/prod` at `packages.notusmi.com/pypi/fleet/prod/+simple/`)
   and a public git tag pin respectively — the former needs network access to
   the fleet to resolve; there is no vendoring. It was Nexus's pypi-hosted from
@@ -240,10 +241,10 @@ left behind.
 - **`constellation`** — owns the `StarManifest` schema that
   `star.toml.jinja` renders against, and `stellar_core.build_admission_input`
   used by `admit.yml`.
-- **`stellar_core`** (SDK, PyPI-distributed from Forgejo) — supplies
-  `HealthState`, `McpOpsAdapter`/`HttpOpsAdapter`,
-  `AsyncHeartbeatPublisher`, and the base Docker images
-  (`stellar_core:{kind}-v1.0`) that non-`core_backed` Dockerfiles build FROM.
+- **`stellar_core`** (Python SDK, RETIRED 2026-10-18; the published wheels
+  stay on devpi) — supplied `HealthState`, the ops adapters and
+  `AsyncHeartbeatPublisher` until the template took them local. `is_sdk`
+  remains only so the SDK's own answers file still renders.
 - **`mnemosyne-core-base`** (image) / **`mnemosyne-core`** (git-pinned
   package) — the `core_backed` path's baked private schema + public core
   package.
