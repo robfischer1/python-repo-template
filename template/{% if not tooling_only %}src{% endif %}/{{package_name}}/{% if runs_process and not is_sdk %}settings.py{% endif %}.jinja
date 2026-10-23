@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     otel_endpoint: str = "http://hemera-otelcol:4318"
     # Set False to silence OTLP export (e.g. local dev with no collector).
     otel_enabled: bool = True
+    # Heartbeat -> redpanda: the Redpanda broker the {live,ready,metrics} beat ships
+    # to (overridden to the in-network listener at deploy, e.g. chronos-redpanda:29092)
+    # and the per-star topic. confluent-kafka is the optional `kafka` extra.
+    # UNCONDITIONAL, because heartbeat.py renders for everything that renders this
+    # file and reads both; they sat behind `mcp` while heartbeat did not, so every
+    # mcp:false render failed mypy on a missing attribute.
+    kafka_bootstrap: str = "localhost:9092"
+    heartbeat_topic: str = "{{ service_name }}._ops.heartbeat"
 {%- if mcp %}
     # Secure by default (S104: binding all interfaces is an operator CHOICE, not
     # a code default). Loopback-only until told otherwise; a star reachable over
@@ -43,11 +51,6 @@ class Settings(BaseSettings):
     # in-repo file left to default it for you). README's env table says the same.
     host: str = "127.0.0.1"
     port: int = {{ port }}
-    # Heartbeat → redpanda: the Redpanda broker the {live,ready,metrics} beat ships
-    # to (overridden to the in-network listener at deploy, e.g. chronos-redpanda:29092)
-    # and the per-star topic. confluent-kafka is the optional `kafka` extra.
-    kafka_bootstrap: str = "localhost:9092"
-    heartbeat_topic: str = "{{ service_name }}._ops.heartbeat"
 {%- endif %}
 
 

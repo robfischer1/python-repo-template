@@ -100,10 +100,10 @@ dev = [
     # wire, so it flags the very pattern the fleet standardised on.
     "forge-testkit>=0.3.1",
 ]
-{%- if mcp %}
+{%- if runs_process %}
 # Heartbeat publisher (the `kafka` extra): confluent-kafka backs the Producer
-# that ships {live,ready,metrics} to redpanda. Optional — a star without it just
-# doesn't beat (the MCP server still serves). Image installs it via
+# that ships {live,ready,metrics} to redpanda. Optional — a repo without it just
+# doesn't beat (a server still serves). Image installs it via
 # `uv sync --extra kafka` (see the Dockerfile).
 kafka = ["confluent-kafka>=2.0"]
 {%- endif %}
@@ -227,7 +227,7 @@ python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
-{%- if mcp %}
+{%- if runs_process %}
 
 # confluent-kafka ships no type stubs (the optional `kafka` extra; absent in the
 # CI gate env entirely). heartbeat.py lazy-imports it — ignore the missing stubs.

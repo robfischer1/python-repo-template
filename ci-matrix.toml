@@ -5,8 +5,9 @@
 # TOML edit, never a workflow edit.
 parse = ["**/*.toml", "**/*.json"]
 
-# The star/library split is the whole file-set variance here: `mcp = false`
-# drops the server and the container ignore-file. The remaining answers
+# The file-set variance is `variant` (a library is a distribution and renders no
+# service skeleton), `mcp` (server.py) and `tooling_only` (no src/tests at all).
+# A star is the container ignore-file's gate. The remaining answers
 # (`sovereign_database`, `core_backed`) change CONTENT ONLY — same file list,
 # different pyproject.toml — which is exactly why they still get cases: tier 2
 # parses what they render, so an unquoted or malformed branch in the pyproject
@@ -63,7 +64,7 @@ present = [
   "src/gate_py/oneiroi.py",
   "tests/test_smoke.py",
 ]
-absent = [".forgejo", "src/gate_py/server.py", ".dockerignore"]
+absent = [".forgejo", "src/gate_py/server.py"]
 
 [[case]]
 # `variant: library` MEANS A DISTRIBUTION, NOT A SERVICE (Rob's ruling,

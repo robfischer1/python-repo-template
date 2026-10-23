@@ -235,6 +235,32 @@ tooling_only:
   help: "Python here is tooling around another language's product: lay the lane's config, not the service skeleton."
   default: false
 
+# COMPUTED, NEVER ASKED (`when: false` keeps them out of the answers file, and a
+# `copier update` re-derives them from the answers it does have).
+#
+# `variant: library` MEANS A DISTRIBUTION, NOT A SERVICE (Rob's ruling,
+# 2026-10-23, python-repo-template#22568). A wheel is imported, not run, so it is
+# born with no service skeleton: no settings, no op-contract, no heartbeat, no
+# observability or oneiroi stub. These two names are the whole gate vocabulary
+# for the filenames under template/src/, so the rule lives in one place.
+#
+# service_skeleton: the full born-with set (settings, health, heartbeat,
+#   observability, oneiroi). Every variant but a library.
+# runs_process: a repo that is started rather than imported needs configuration
+#   and a heartbeat. A star, a binary, or a library that is also an MCP server
+#   (vault-mcp): server.py reads settings.host/port and main() starts the
+#   heartbeat, which reads health. `mcp` alone does not pull in observability or
+#   oneiroi: nothing imports them.
+service_skeleton:
+  type: bool
+  default: "{{ variant != 'library' }}"
+  when: false
+
+runs_process:
+  type: bool
+  default: "{{ variant != 'library' or mcp }}"
+  when: false
+
 # Where the package lives, for the publish lane. "." for a single-package repo.
 package_dir:
   type: str
