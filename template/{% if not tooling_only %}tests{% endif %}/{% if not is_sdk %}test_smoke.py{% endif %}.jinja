@@ -7,19 +7,26 @@
 import re
 
 from {{ package_name }} import __version__
+{%- if runs_process %}
 from {{ package_name }}.health import current_health
+{%- endif %}
+{%- if service_skeleton %}
 from {{ package_name }}.observability import configure_telemetry
 from {{ package_name }}.oneiroi import emit_memory
+{%- endif %}
 {%- if mcp %}
 from {{ package_name }}.server import mcp
 {%- endif %}
+{%- if runs_process %}
 from {{ package_name }}.settings import get_settings
+{%- endif %}
 
 
 def test_version() -> None:
     # Assert a valid X.Y.Z version rather than a frozen literal, so the test
     # survives version bumps instead of rotting into a CI break.
     assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
+{%- if runs_process %}
 
 
 def test_settings_load() -> None:
@@ -27,10 +34,12 @@ def test_settings_load() -> None:
 
 
 def test_health_surface() -> None:
-    # Born-with operational contract from the vendored .ops module.
+    # Born-with operational contract from the local health module.
     state = current_health()
     assert state.live is True
     assert state.ready is True
+{%- endif %}
+{%- if service_skeleton %}
 
 
 def test_observability_endpoint() -> None:
@@ -44,6 +53,7 @@ def test_oneiroi_hook() -> None:
     # is a mypy func-returns-value error; the no-raise call is the real check).
     # forge-testkit: assert-exempt: no-op memory hook; the no-raise call is the check
     emit_memory("smoke", {"ok": True})
+{%- endif %}
 {%- if mcp %}
 
 
