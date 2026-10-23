@@ -21,59 +21,101 @@ parse = ["**/*.toml", "**/*.json"]
 # would otherwise arrive unnoticed.
 
 [[case]]
+# A STAR: a service. The whole service skeleton is born with it: the op-contract
+# trio, the settings they read, the oneiroi emission stub, and the FastMCP
+# server when `mcp` is true.
 name = "star"
 answers = { project_name = "Gate Py", variant = "star", mcp = true }
 present = [
   ".gitignore",                    # F5a: the pre-wrapped managed block
-  "src/gate_py/server.py",         # the FastMCP entrypoint — mcp only
+  "src/gate_py/server.py",         # the FastMCP entrypoint - mcp only
   "src/gate_py/settings.py",
-  # The op-contract trio, and they are pinned in the LIBRARY case too — which is
-  # the point. They were `variant == 'star'` until 2026-09-25 and so reached
-  # nobody: both of this template's subscribers are libraries.
   "src/gate_py/health.py",
   "src/gate_py/heartbeat.py",
   "src/gate_py/observability.py",
+  "src/gate_py/oneiroi.py",
   "pyproject.toml",
   ".dockerignore",                 # containerised: build context matters
   "tests/test_smoke.py",
-  # The no-network guard is born with the star, not adopted after an
-  # incident: the autouse fixture and the tests that prove it. Unconditional
-  # (no copier answer gates them), so the library case pins them too.
+  # The no-network guard is born with the repo, not adopted after an incident:
+  # the autouse fixture and the tests that prove it. Unconditional (no copier
+  # answer gates them), so the library case pins them too.
   "tests/conftest.py",
   "tests/test_network_guard.py",
 ]
 absent = [".forgejo", "src/gate_py/__main__.py"]
 
 [[case]]
-# The star/library crossing is what is left, and it is the one that matters:
-# `library` pins the container surface ABSENT and `star` pins it PRESENT, so a
-# fat-fingered `mcp` guard reds a neighbour's case rather than shipping the
-# wrong shape quietly. The publish.yml/cast.yml crossing that used to sit here
-# went with the workflows.
+# A STAR WITHOUT MCP still has the whole skeleton (heartbeat, health, settings,
+# observability, oneiroi) and no server. The settings that heartbeat.py reads
+# (kafka_bootstrap, heartbeat_topic) must exist whenever heartbeat.py renders:
+# they were mcp-gated while heartbeat was not, so every mcp:false render failed
+# mypy. This case pins the file set; the settings content is one unconditional
+# block in settings.py.jinja.
+name = "star-no-mcp"
+answers = { project_name = "Gate Py", variant = "star", mcp = false }
+present = [
+  "pyproject.toml",
+  "src/gate_py/settings.py",
+  "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/observability.py",
+  "src/gate_py/oneiroi.py",
+  "tests/test_smoke.py",
+]
+absent = [".forgejo", "src/gate_py/server.py", ".dockerignore"]
+
+[[case]]
+# `variant: library` MEANS A DISTRIBUTION, NOT A SERVICE (Rob's ruling,
+# 2026-10-23, python-repo-template#22568). A published wheel is not run, so it
+# is born with no service skeleton: no settings, no op-contract, no heartbeat,
+# no observability or oneiroi stub. The crossing against the star cases is the
+# guard: a fat-fingered gate reds one of the neighbours instead of shipping the
+# wrong shape quietly. (Until v0.40.0 this case pinned the op-contract PRESENT,
+# on the reasoning that the only two subscribers were libraries; that was the
+# bug: a library does not run a heartbeat.)
 name = "library"
 answers = { project_name = "Gate Py", variant = "library", mcp = false }
 present = [
   ".gitignore",                    # F5a: the pre-wrapped managed block
   "pyproject.toml",
   "src/gate_py/__init__.py",
-  # THE OP-CONTRACT IS NOT A CONTAINER FEATURE. Pinned PRESENT here because the
-  # star case pinning them proves nothing on its own: they were star-gated for
-  # months while every actual subscriber was a library, so the crossing that
-  # matters is this one. health.py's own docstring carried a "Library/CLI star"
-  # branch the whole time, unreachable behind the filename gate.
-  "src/gate_py/health.py",
-  "src/gate_py/heartbeat.py",
-  "src/gate_py/observability.py",
+  "tests/test_smoke.py",            # the version check
   "tests/conftest.py",              # the guard is not a star-only thing
   "tests/test_network_guard.py",
 ]
 absent = [
   ".forgejo",
-  # A plain library is not deployed, so nothing container-shaped may render. If
-  # any of these come back the `mcp` guards have regressed and every library
-  # stamp is born with a container pipeline it cannot satisfy.
+  "src/gate_py/settings.py",
+  "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "src/gate_py/observability.py",
+  "src/gate_py/oneiroi.py",
+  # Nothing container-shaped may render for a plain library.
   "src/gate_py/server.py",
   ".dockerignore",
+]
+
+[[case]]
+# A LIBRARY THAT IS ALSO AN MCP SERVER (vault-mcp's shape). server.py is gated on
+# `mcp` alone and imports settings (host/port) and, in main(), heartbeat (which
+# imports health). Those three stay; observability and oneiroi are skeleton
+# nothing imports, so they do not render.
+name = "library-mcp"
+answers = { project_name = "Gate Py", variant = "library", mcp = true }
+present = [
+  "pyproject.toml",
+  "src/gate_py/server.py",
+  "src/gate_py/settings.py",
+  "src/gate_py/health.py",
+  "src/gate_py/heartbeat.py",
+  "tests/test_smoke.py",
+]
+absent = [
+  ".forgejo",
+  ".dockerignore",
+  "src/gate_py/observability.py",
+  "src/gate_py/oneiroi.py",
 ]
 
 [[case]]
