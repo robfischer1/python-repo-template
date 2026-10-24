@@ -17,10 +17,12 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import copier_migrate as cm
-import pytest
+
+if TYPE_CHECKING:
+    import pytest
 
 TOOL = Path(cm.__file__).resolve()
 TOOL_SHA256 = "f8453d4091673f7280bc803b51d4056dddd59b9f20cc2c20c210435ade9959ce"
