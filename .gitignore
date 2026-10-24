@@ -14,3 +14,6 @@ htmlcov/
 # .claude/worktrees/<name>, inside the repo; declared here so the exclusion is a
 # property of THIS REPO and not of one workstation's ~/.gitignore_global.
 .claude/
+
+# Builder scratch (logs, red evidence), never committed.
+.work/
