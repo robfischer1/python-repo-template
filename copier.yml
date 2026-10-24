@@ -10,17 +10,18 @@
 _subdirectory: template
 _min_copier_version: "9.0.0"
 
-# dagger.json IS COPIER'S, create and update — it
-# is deliberately NOT in `_skip_if_exists`. It declares foundry-tools as the
-# repo's toolchain (`dagger check` / `dagger call foundry-tools …` bind THIS
-# tree, the documented workflow, instead of every caller spelling
-# `-m git.notusmi.com/rob/foundry-tools@<sha> --source=.`), and it carries NO
-# pin on purpose: the door resolves foundry-tools at main for every dispatch
-# (ourea #109) and an unpinned toolchain resolves the same way, measured
-# 2026-09-13 against the cluster engine. A consumer's dagger.json declares no
-# sdk, which is how hephaestus's tree probe tells it from a module.
-# `_skip_if_exists` = every rendered path EXCEPT the file copier owns outright
-# (dagger.json, per the note above). It used to except pyproject.toml too, as
+# dagger.json IS RETIRED (2026-10-24). It declared foundry-tools as the repo's
+# dagger toolchain for `dagger check` / `dagger call foundry-tools …`. No recipe
+# calls dagger any more (check, gate and the dev verbs ask the door), so the
+# template stops rendering it. No migration removes it: `copier update` deletes
+# a file the old version rendered and the new one does not, when the star never
+# edited it (measured with copier 9.17.2 on a go star, the same mechanism: `D
+# dagger.json`, and nothing else moved). A star that edited its dagger.json
+# drops it by hand. The door's readers only ever looked for a dagger.json WITH
+# an sdk (a module, i.e. foundry-tools), so a consumer losing its sdk-free one
+# changes no derived product.
+# `_skip_if_exists` = every rendered path. It used to except dagger.json (copier
+# owned it outright, now retired) and pyproject.toml too, as
 # "the one merge seam left"; THE SEAM IS CLOSED (2026-09-30, the note on
 # pyproject.toml in the list below) and the header kept saying otherwise. An
 # earlier version of this line also named .gitignore as a second seam while
