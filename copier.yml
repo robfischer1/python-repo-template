@@ -670,7 +670,10 @@ _tasks:
 # EVERY ENTRY BELOW RUNS ONE COMMITTED COMMAND, AS ARGV (Rob's atom law: no
 # inline code in YAML). That command is tools/copier_migrate.py, read from the
 # template clone (`_copier_conf.src_path`) at the version being updated to, and
-# tested by tools/test_copier_migrate.py in this repo's gate. Each migration's
+# tested by tools/test_copier_migrate*.py in this repo's gate. The same file is
+# vendored, byte for byte, in go-, rust- and frontend-repo-template (a template
+# cannot import across repos); test_copier_migrate_core.py pins its sha256, so a
+# lone edit fails there. Each migration's
 # payload is a JSON file under migrations/ — data, not code — so blocks carrying
 # `{{EXECUTE}}` or `{{just_executable()}}` need no base64 armour: Jinja renders
 # the argv, never the payload. Until 2026-10-24 each entry was an inline
