@@ -16,6 +16,12 @@ Verbs (each idempotent, each exits 0 when it leaves a file alone):
   managed-block PATH --rules R --name N
                                merge R into PATH as N's managed block
   recipes PATH --spec S        recipe-level exact-match justfile sweep
+  referee PATH --prev P        put the star's own package.json keys back
+                               after an update (P: the pre-update copy)
+
+THIS FILE IS VENDORED, byte-identical, in python-, go-, rust- and frontend-repo-
+template (a template cannot import across repos). tools/test_copier_migrate_core.py
+pins its sha256, so a lone edit fails there. Change all four copies together.
 
 EXACT MATCH, NEVER A GUESS. A file that matches no shape the template shipped
 is named and left alone; the star reconciles it by hand. Exit 2 is reserved for
@@ -25,6 +31,7 @@ a bad invocation or an unreadable spec, so a broken migration fails loudly.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import io
 import json
@@ -71,7 +78,18 @@ def strs(spec: dict[str, object], key: str) -> list[str]:
 
 
 def retire(target: Path, spec: dict[str, object]) -> str:
-    """Delete target when it is byte-identical to a shipped rendering."""
+    """Delete target when it is byte-identical to a shipped rendering.
+
+    A spec ``epilogue`` is printed whatever the outcome.
+    """
+    outcome = retire_outcome(target, spec)
+    if "epilogue" in spec:
+        say(str(spec["epilogue"]))
+    return outcome
+
+
+def retire_outcome(target: Path, spec: dict[str, object]) -> str:
+    """Do the retire and name what happened."""
     if not target.exists():
         return "absent"
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
@@ -163,19 +181,29 @@ def drop_own_attrs(head: str) -> str:
     return "\n".join(lines)
 
 
-def sweep_pairs(text: str, pairs: list[dict[str, object]]) -> tuple[str, list[str], list[str]]:
-    """Apply each recipe pair; return (text, swept names, edited names)."""
+def sweep_pairs(
+    text: str, pairs: list[dict[str, object]], spec: dict[str, object]
+) -> tuple[str, list[str], list[str]]:
+    """Apply each recipe pair; return (text, swept names, edited names).
+
+    A pair is done when any of its ``new`` blocks is present, or, with the spec's
+    ``done_new`` index, when that one is. ``keep_attrs`` leaves the [doc(...)] lines
+    above a replaced recipe in place.
+    """
     swept: list[str] = []
     kept: list[str] = []
+    done = spec.get("done_new")
     for pr in pairs:
         name = str(pr.get("name", "?"))
         news = strs(pr, "new")
-        if any(n in text for n in news):
+        marks = [news[done]] if isinstance(done, int) else news
+        if any(n in text for n in marks):
             continue
         for old, new in zip(strs(pr, "old"), news, strict=True):
             i = find_block(text, old)
             if i >= 0:
-                text = drop_own_attrs(text[:i]) + new + text[i + len(old) :]
+                head = text[:i] if spec.get("keep_attrs") else drop_own_attrs(text[:i])
+                text = head + new + text[i + len(old) :]
                 swept.append(name)
                 break
         else:
@@ -188,6 +216,9 @@ def gate(text: str, base: Path, spec: dict[str, object]) -> str | None:
     done = spec.get("done_if")
     if isinstance(done, str) and re.search(done, text, re.MULTILINE):
         return f"justfile already matches {done!r}"
+    need = spec.get("need_re")
+    if isinstance(need, str) and not re.search(need, text, re.MULTILINE):
+        return f"justfile does not match {need!r} yet - LEAVING IT ALONE (an earlier sweep first)."
     for req in strs(spec, "require"):
         if not (base / req).exists():
             return f"no {req} beside the justfile yet - LEAVING IT ALONE (the next update retries)."
@@ -200,6 +231,23 @@ def gate(text: str, base: Path, spec: dict[str, object]) -> str | None:
     if isinstance(anchor, str) and anchor not in text:
         return f"justfile has no {anchor.strip()!r} - LEAVING IT ALONE. Reconcile by hand."
     return None
+
+
+def rewrite_lines(text: str, spec: dict[str, object]) -> str:
+    """Apply the spec's ``lines`` rewrites (every occurrence), after a sweep.
+
+    An entry with ``unless`` is skipped while that regex still matches the text:
+    a recipe the sweep kept still reads what the rewrite would remove.
+    """
+    entries = spec.get("lines", [])
+    if not isinstance(entries, list):
+        raise SystemExit(2)
+    for ent in cast("list[dict[str, str]]", entries):
+        guard = ent.get("unless")
+        if guard is not None and re.search(guard, text):
+            continue
+        text = text.replace(ent["old"], ent["new"])
+    return text
 
 
 def recipes(target: Path, spec: dict[str, object]) -> str:
@@ -222,11 +270,12 @@ def recipes(target: Path, spec: dict[str, object]) -> str:
     pairs = spec.get("pairs", [])
     if not isinstance(pairs, list):
         raise SystemExit(2)
-    text, swept, kept = sweep_pairs(orig, cast("list[dict[str, object]]", pairs))
+    text, swept, kept = sweep_pairs(orig, cast("list[dict[str, object]]", pairs), spec)
     if not swept:
         if kept:
             say("no recipe matched a shipped block - LEFT ALONE. EDITED: " + ", ".join(kept))
         return "kept"
+    text = rewrite_lines(text, spec)
     anchor, insert = spec.get("anchor"), spec.get("insert")
     if isinstance(anchor, str) and isinstance(insert, str):
         text = text.replace(anchor, anchor + "\n" + insert, 1)
@@ -235,6 +284,66 @@ def recipes(target: Path, spec: dict[str, object]) -> str:
     if kept:
         say("EDITED, LEFT ALONE (reconcile by hand): " + ", ".join(kept))
     return "swept"
+
+
+OWNED = (
+    "version",
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+    "overrides",
+    "engines",
+)
+
+
+def referee(target: Path, prev: Path) -> str:
+    """Put the star's own package.json keys back after an update merged over them.
+
+    ``prev`` is the package.json as it stood before the update (the migration
+    before this one checks it out of the index). It is deleted when read.
+    """
+    try:
+        return referee_keys(target, prev)
+    finally:
+        prev.unlink(missing_ok=True)
+        with contextlib.suppress(OSError):
+            prev.parent.rmdir()
+
+
+def referee_keys(target: Path, prev: Path) -> str:
+    """Restore the OWNED keys of ``prev`` into ``target``, in the star's key order."""
+    try:
+        prev_raw = prev.read_text(encoding="utf-8")
+    except OSError:
+        say("no package.json at HEAD - nothing to referee")
+        return "absent"
+    try:
+        before = json.loads(prev_raw)
+        merged = json.loads(target.read_text(encoding="utf-8"))
+        if not isinstance(before, dict) or not isinstance(merged, dict):
+            raise TypeError("not a JSON object")
+    except (OSError, ValueError, TypeError) as e:
+        say(f"package.json does not parse ({e}).")
+        say(
+            "leaving it ALONE - resolve the conflict, then re-check "
+            "that version/dependencies/devDependencies/overrides still hold."
+        )
+        return "kept"
+    restored = [k for k in OWNED if k in before and merged.get(k) != before[k]]
+    for k in restored:
+        merged[k] = before[k]
+    out = {k: merged[k] for k in before if k in merged}
+    out.update((k, v) for k, v in merged.items() if k not in out)
+    with target.open("w", encoding="utf-8") as fh:
+        json.dump(out, fh, indent=2)
+        fh.write("\n")
+    if restored:
+        say("star-owned package.json keys kept: " + ", ".join(restored))
+        say("run `bun install` - the lockfile may now be stale.")
+        return "restored"
+    say("package.json needed no refereeing")
+    return "clean"
 
 
 def parser() -> argparse.ArgumentParser:
@@ -254,6 +363,9 @@ def parser() -> argparse.ArgumentParser:
     m.add_argument("--rules", type=Path, required=True)
     m.add_argument("--name", required=True)
     m.add_argument("--note", action="append", default=[])
+    r = sub.add_parser("referee")
+    r.add_argument("path", type=Path)
+    r.add_argument("--prev", type=Path, required=True)
     return p
 
 
@@ -264,6 +376,9 @@ def main(argv: list[str] | None = None) -> int:
     a = parser().parse_args(argv)
     if a.verb == "managed-block":
         managed_block(a.path, a.rules, a.name, a.note)
+        return 0
+    if a.verb == "referee":
+        referee(a.path, a.prev)
         return 0
     verbs = {"retire": retire, "swap": swap, "recipes": recipes}
     verbs[a.verb](a.path, load_spec(a.spec))
