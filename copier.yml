@@ -453,9 +453,9 @@ _tasks:
   # correctly-stamped header. Append it iff absent (idempotent; [0-9]{4} == the
   # template's \d{4}, spelt without a backslash to survive YAML->shell->python).
   - command: python -c "import pathlib; p=pathlib.Path('pyproject.toml'); t=p.read_text(encoding='utf-8'); s='[tool.ruff.lint.flake8-copyright]'; body=s+chr(10)+'notice-rgx = '+chr(39)+'(?i)SPDX-FileCopyrightText:.*[0-9]{4}'+chr(39)+chr(10); p.write_text(t if s in t else t.rstrip()+chr(10)+chr(10)+body, encoding='utf-8')"
-    # `not tooling_only`: that render carries no [tool.ruff] at all (the gate
-    # passes its own ruleset), so this would append a lone orphan table to the
-    # star's pyproject on every update.
+    # `not tooling_only`: that render carries no ruff lint tables, only
+    # [tool.ruff] line-length (the gate passes its own ruleset), so this would
+    # append a lone orphan table to the star's pyproject on every update.
     when: "{{ _copier_operation == 'update' and not tooling_only }}"
   # THE FLAME C4 RELOCATION IS GONE, and so is what it relocated to. It moved
   # `infra/terraform.tfvars` to `{star}.tfvars` at root on update, explaining itself

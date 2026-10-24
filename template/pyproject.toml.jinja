@@ -13,14 +13,14 @@
 #   - pydantic-settings, forge-testkit, pyright, pytest-cov: the
 #     service skeleton's dependencies. Nothing in a script surface imports them,
 #     and forge-testkit in particular would switch on three atoms.
-#   - [tool.ruff], [tool.mypy], [tool.pyright]: the gate passes the fleet's
-#     ruleset with --config, which makes it ignore every table here, so a second
-#     copy could only disagree with the first.
+#   - [tool.ruff]'s rules, [tool.mypy], [tool.pyright]: the gate passes the
+#     fleet's ruleset with --config, which makes it ignore every table here, so
+#     a second copy could only disagree with the first. The one value kept is
+#     [tool.ruff] line-length, the fleet's one width (100, Rob 2026-10-24), so
+#     an editor's ruff formats at the width the gate grades.
 #
-# [build-system] IS KEPT, deliberately. It is what the gate reads as "the python
-# is this repo's subject", and it grades such a repo at the fleet's canonical
-# line length of 80. `[tool.uv] package = false` below only stops uv from trying
-# to build a distribution that does not exist.
+# [build-system] IS KEPT, deliberately. `[tool.uv] package = false` below only
+# stops uv from trying to build a distribution that does not exist.
 #
 # IT IS NOT A PACKAGE AND DOES NOT PUBLISH. This declares an ENVIRONMENT:
 # `uv run --all-extras <tool>` is what the lane builds for a repo with a
@@ -47,6 +47,9 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 100
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -151,8 +154,11 @@ packages = ["src/{{ package_name }}"]
 #   target-version py312  -> 3.12 (the literal wins; this was the fleet's state)
 # Leaving it unset removes the second writer instead of resynchronising it, so
 # raising requires-python is now the ONE edit that moves the lint floor.
+#
+# line-length is the fleet's one width, 100 (Rob, 2026-10-24), the value the
+# gate passes as --line-length for every repo and variant.
 [tool.ruff]
-line-length = 80
+line-length = 100
 
 
 # PYDANTIC EVALUATES ANNOTATIONS AT RUNTIME, and ruff cannot know that on its
