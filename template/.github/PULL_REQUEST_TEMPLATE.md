@@ -6,7 +6,6 @@
 
 - [ ] `uv run ruff check .` clean
 - [ ] `uv run mypy src tests` clean
-- [ ] `uv run pyright` clean
 - [ ] `uv run pytest` passes
 
 ## Notes

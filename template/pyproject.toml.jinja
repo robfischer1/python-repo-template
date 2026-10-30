@@ -10,10 +10,10 @@
 # copier owns this file only at birth: it is in `_skip_if_exists`, so no update
 # rewrites it. What this render drops from the service one, deliberately:
 #   - [tool.hatch.*] and the package list: there is no src/<package> to build.
-#   - pydantic-settings, forge-testkit, pyright, pytest-cov: the
+#   - pydantic-settings, forge-testkit, pytest-cov: the
 #     service skeleton's dependencies. Nothing in a script surface imports them,
 #     and forge-testkit in particular would switch on three atoms.
-#   - [tool.ruff]'s rules, [tool.mypy], [tool.pyright]: the gate passes the
+#   - [tool.ruff]'s rules, [tool.mypy]: the gate passes the
 #     fleet's ruleset with --config, which makes it ignore every table here, so
 #     a second copy could only disagree with the first. The one value kept is
 #     [tool.ruff] line-length, the fleet's one width (100, Rob 2026-10-24), so
@@ -93,7 +93,6 @@ dev = [
     "pytest-cov>=5",
     "ruff==0.16.0",
     "mypy>=1.10",
-    "pyright==1.1.411",
     # The three forge-testkit lints the commit stage runs. DECLARED HERE,
     # not assumed: the hooks landed in v0.16.3 and this dep never did, so every
     # scaffold since has shipped three hooks calling a package `uv run --extra
@@ -249,20 +248,6 @@ disallow_untyped_calls = false
 disallow_incomplete_defs = false
 check_untyped_defs = false
 warn_return_any = false
-
-[tool.pyright]
-include = ["src", "tests"]
-exclude = ["**/__pycache__", ".venv"]
-typeCheckingMode = "strict"
-pythonVersion = "3.14"
-venvPath = "."
-venv = ".venv"
-reportUnnecessaryTypeIgnoreComment = false
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
-reportUnknownParameterType = false
-reportMissingTypeStubs = false
 
 # The C3 FakeX-placement lint's one knob: where test doubles are SANCTIONED.
 # `check_fake_placement` permits Fake*/Stub* INSIDE this package and flags them

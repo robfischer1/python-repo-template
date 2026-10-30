@@ -101,7 +101,7 @@ already born need a bumped `_migrations` entry in `copier.yml` — copy the
   Hemera), `oneiroi.py` (memory-emission stub)
 - A born-conformant `star.toml` — the constellation `StarManifest` every
   admission gate reads
-- Lint/type/test baseline: ruff (`select=ALL`), mypy strict, pyright strict,
+- Lint/type/test baseline: ruff (`select=ALL`), mypy strict,
   pytest with coverage
 - Forgejo Actions: `ci.yml` (PR gate: lint/type/test + pip-audit + opengrep
   SAST), `admit.yml` (constellation admission: cosign verify, syft SBOM, local
