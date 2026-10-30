@@ -1,0 +1,9 @@
+{
+  "version": "v0.44.2",
+  "label": "command-injection sources",
+  "old": [
+    "    pattern-sources:\n      - pattern-either:\n          - pattern: request.query_params\n          - pattern: request.path_params\n          - pattern: (await request.json())\n          - pattern: sys.argv\n          - pattern: input(...)\n    pattern-sinks:\n      - patterns:\n          - pattern-either:\n              - pattern: os.system(...)\n"
+  ],
+  "new": "    pattern-sources:\n      # sys.argv is NOT a source HERE, deliberately - same confused-deputy\n      # argument as the path-traversal rule below. Whoever sets argv already\n      # runs the process at its own privilege, so `tool --bin /usr/bin/x` is a\n      # shell with extra steps, not an escalation. Measured against\n      # cerberus/probes/ (29 .py driver scripts): argv -> subprocess.Popen fired\n      # 5/5 and all 5 were false positives, each an operator naming the binary\n      # they can already run. HTTP request data and stdin STAY: they cross a\n      # trust boundary the argv supplier does not.\n      - pattern-either:\n          - pattern: request.query_params\n          - pattern: request.path_params\n          - pattern: (await request.json())\n          - pattern: input(...)\n    pattern-sinks:\n      - patterns:\n          - pattern-either:\n              - pattern: os.system(...)\n",
+  "note": "sys.argv is no longer a taint source for forge-taint-command-injection (confused deputy; 5/5 false positives on cerberus/probes)"
+}
