@@ -54,10 +54,9 @@ sync:
 # because the engine is handed the tree and not git's index.
 lint: check
 
-# BOTH type checkers, matching CI — they disagree, and CI runs both
+# The type check, matching CI (mypy strict; the fleet runs mypy only)
 types:
     uv run mypy src tests
-    uv run pyright
 
 [doc('Run the test suite, on the cluster')]
 [positional-arguments]

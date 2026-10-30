@@ -47,7 +47,7 @@ Inside `template/`:
 - **`pyproject.toml.jinja`** — PEP 621 project, hatchling build backend,
   version single-sourced from `src/{{package_name}}/__init__.py`. Carries
   the canonical Forge lint/type/test policy: ruff `select = ["ALL"]` with a
-  documented ignore list, mypy strict, pyright strict, pytest+coverage. Adds
+  documented ignore list, mypy strict, pytest+coverage. Adds
   `mcp[cli]` when `mcp`, `mnemosyne-core` when `core_backed`, `psycopg`/
   `pgvector` extras when `sovereign_database`. Resolves `forge-testkit` from
   the fleet's own PyPI index (`[[tool.uv.index]]`).
@@ -161,7 +161,6 @@ cd /tmp/smoke-test
 uv sync --extra dev
 just lint            # the commit stage, on the engine
 uv run mypy src tests
-uv run pyright
 uv run pytest -q
 uv run --with pip-audit pip-audit
 ```
