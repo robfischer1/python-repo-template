@@ -20,9 +20,8 @@ from {{ package_name }}.settings import get_settings
 # (reject any Host header not in allowed_hosts, with a 421) blocks the gateway
 # dialing this star by its service name. Default to OFF + allow-all; set
 # `{{ package_name | upper }}_ALLOWED_HOSTS` (comma-separated) to re-pin hosts.
-_allowed_hosts = [
-    h for h in os.environ.get("{{ package_name | upper }}_ALLOWED_HOSTS", "").split(",") if h
-]
+_raw_hosts = os.environ.get("{{ package_name | upper }}_ALLOWED_HOSTS", "")
+_allowed_hosts = [h for h in _raw_hosts.split(",") if h]
 _transport_security = TransportSecuritySettings(
     enable_dns_rebinding_protection=bool(_allowed_hosts),
     allowed_hosts=_allowed_hosts or ["*"],
