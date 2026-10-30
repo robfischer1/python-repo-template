@@ -41,7 +41,9 @@ def _ruff_pin(dest: Path) -> str:
 
 
 def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
+    return subprocess.run(  # noqa: S603  # tool-conflict: S603 flags every subprocess call, and this one runs argv built here from a pinned copier version and the matrix file
+        argv, cwd=cwd, capture_output=True, text=True, check=False
+    )
 
 
 @pytest.mark.parametrize("name", CASES)
