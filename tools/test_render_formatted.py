@@ -41,7 +41,7 @@ def _ruff_pin(dest: Path) -> str:
 
 
 def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603  # tool-conflict: S603 flags every subprocess call, and this one runs argv built here from a pinned copier version and the matrix file
+    return subprocess.run(  # noqa: S603  # tool-conflict: ruff S603 and pytest disagree, since a render test has to run copier and ruff as subprocesses, with an argv built here from pinned versions
         argv, cwd=cwd, capture_output=True, text=True, check=False
     )
 
