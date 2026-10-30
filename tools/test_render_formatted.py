@@ -15,6 +15,7 @@ copier and uvx are hard requirements: a missing tool FAILS, it never skips.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import shutil
 import subprocess
@@ -40,10 +41,16 @@ def _ruff_pin(dest: Path) -> str:
     return f"ruff=={found.group(1)}"
 
 
-def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603  # tool-conflict: ruff S603 and pytest disagree, since a render test has to run copier and ruff as subprocesses, with an argv built here from pinned versions
-        argv, cwd=cwd, capture_output=True, text=True, check=False
+async def _exec(argv: list[str], cwd: Path) -> tuple[int, str]:
+    proc = await asyncio.create_subprocess_exec(
+        *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
     )
+    out, _ = await proc.communicate()
+    return proc.returncode or 0, out.decode()
+
+
+def _run(argv: list[str], cwd: Path) -> tuple[int, str]:
+    return asyncio.run(_exec(argv, cwd))
 
 
 @pytest.mark.parametrize("name", CASES)
@@ -70,11 +77,9 @@ def test_render_passes_ruff(name: str, tmp_path: Path) -> None:
         argv += ["--data", f"{key}={str(value).lower() if isinstance(value, bool) else value}"]
     argv += [str(ROOT), str(dest)]
     rendered = _run(argv, tmp_path)
-    assert rendered.returncode == 0, rendered.stdout + rendered.stderr
+    assert rendered[0] == 0, rendered[1]
 
     pin = _ruff_pin(dest)
     for sub in (["format", "--check"], ["check"]):
         result = _run([uvx, pin, *sub], dest)
-        assert result.returncode == 0, (
-            f"{name}: ruff {' '.join(sub)}\n{result.stdout}{result.stderr}"
-        )
+        assert result[0] == 0, f"{name}: ruff {' '.join(sub)}\n{result[1]}"
