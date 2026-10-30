@@ -289,3 +289,37 @@ def test_every_migration_runs_the_committed_tool() -> None:
 def test_every_spec_a_migration_names_exists() -> None:
     for ref in re.findall(r"migrations/([\w.-]+\.json)", migrations_block()):
         assert (MIG / ref).is_file(), ref
+
+
+# --- v0.44.2: sys.argv leaves the command-injection sources ---------------------
+
+SAST = ROOT / "template" / "rules" / "sast" / "dataflow.yml"
+
+
+def test_sast_argv_swap_lands_on_the_template_rules(tmp_path: Path) -> None:
+    """Un-doing the swap on today's rules and re-running it restores them exactly."""
+    s = spec("v0.44.2-sast-argv.json")
+    today = SAST.read_text(encoding="utf-8")
+    new = cm.strs(s, "new")[0]
+    assert today.count(new) == 1
+    f = tmp_path / "dataflow.yml"
+    f.write_text(today.replace(new, cm.strs(s, "old")[0]), encoding="utf-8")
+    assert "- pattern: sys.argv" in f.read_text(encoding="utf-8")
+    assert cm.swap(f, s) == "swept"
+    assert f.read_text(encoding="utf-8") == today
+    assert cm.swap(f, s) == "current"
+
+
+def test_sast_argv_swap_leaves_an_edited_rule(tmp_path: Path) -> None:
+    s = spec("v0.44.2-sast-argv.json")
+    f = tmp_path / "dataflow.yml"
+    f.write_text("rules:\n  - id: forge-taint-command-injection\n    edited: true\n", "utf-8")
+    assert cm.swap(f, s) == "kept"
+
+
+def test_sast_argv_swap_is_wired_in_copier_yml() -> None:
+    assert re.search(
+        r"version: v0\.44\.2\n\s+when:.*\n\s+command: \[.*swap, rules/sast/dataflow\.yml, "
+        r"--spec, .*v0\.44\.2-sast-argv\.json",
+        migrations_block(),
+    )

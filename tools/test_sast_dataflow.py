@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Rob Fischer
+#
+# SPDX-License-Identifier: Apache-2.0
+
+"""The vendored opengrep taint rules: which sources reach the command sink.
+
+Command injection is a confused-deputy bug, so sys.argv (set by whoever already
+runs the process) is not a source for it, while HTTP request data and stdin are.
+Runs the real opengrep over a tiny fixture; skipped, loudly, when the binary is
+absent (the gate's fleet:opengrep-sast atom grades the rules there).
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+RULES = Path(__file__).resolve().parent.parent / "template" / "rules" / "sast" / "dataflow.yml"
+CMD_RULE = "forge-taint-command-injection"
+
+ARGV = "import subprocess\nimport sys\n\n\ndef run():\n    subprocess.run([sys.argv[1]])\n"
+STDIN = "import subprocess\n\n\ndef run():\n    cmd = input()\n    subprocess.run([cmd])\n"
+HTTP = (
+    "import subprocess\n\n\n"
+    "def run(request):\n    cmd = request.query_params\n    subprocess.run([cmd])\n"
+)
+
+
+def _hits(tmp_path: Path, body: str, name: str) -> set[str]:
+    opengrep = shutil.which("opengrep")
+    if opengrep is None:
+        pytest.skip("opengrep is not installed here; fleet:opengrep-sast grades the rules")
+    src = tmp_path / f"{name}.py"
+    src.write_text(body, encoding="utf-8")
+    done = subprocess.run(  # noqa: S603  # tool-conflict: ruff S603 and pytest disagree, since a rules test has to run the opengrep binary as a subprocess
+        [opengrep, "scan", "--config", str(RULES), "--json", "--quiet", str(src)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    found = json.loads(done.stdout)["results"]
+    return {r["check_id"].rsplit(".", 1)[-1] for r in found}
+
+
+def test_argv_to_subprocess_is_not_command_injection(tmp_path: Path) -> None:
+    """An operator naming the binary they can already run is not an attack."""
+    assert CMD_RULE not in _hits(tmp_path, ARGV, "argv")
+
+
+@pytest.mark.parametrize(("name", "body"), [("stdin", STDIN), ("http", HTTP)])
+def test_untrusted_input_to_subprocess_still_fires(tmp_path: Path, name: str, body: str) -> None:
+    """Stdin and HTTP request data cross a trust boundary; they stay sources."""
+    assert CMD_RULE in _hits(tmp_path, body, name)
+
+
+def test_rules_file_is_ascii_only() -> None:
+    """opengrep reads rule files under the C locale and chokes on non-ASCII."""
+    RULES.read_text(encoding="ascii")

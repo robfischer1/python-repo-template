@@ -681,6 +681,21 @@ _tasks:
 # blocks, decoded byte for byte. New migration: add a spec, add one argv entry.
 _migrations:
 
+  # v0.44.2 - sys.argv LEAVES THE COMMAND-INJECTION SOURCES. rules/** is
+  # `_skip_if_exists`, so the template edit alone reaches only new stars. Whoever
+  # sets argv already runs the process at its own privilege (confused deputy:
+  # no authority gap), and argv -> subprocess fired 5/5 false positives on
+  # cerberus/probes/. The path-traversal rule already dropped argv (508ac54).
+  # `swap` is exact-match on the one source block, unchanged since the rules
+  # file was vendored (v0.3.0, checked against every revision): a star that
+  # edited that rule is named and left alone. The explanatory comments added
+  # above the block ride along inside it; the file-header comment is not swept
+  # (a star's header keeps saying argv is a source in three rules; harmless).
+  # SSRF and SQLi keep argv: no evidence yet either way, a separate change.
+  - version: v0.44.2
+    when: "{{ _stage == 'after' }}"
+    command: [python3, "{{ _copier_conf.src_path }}/tools/copier_migrate.py", swap, rules/sast/dataflow.yml, --spec, "{{ _copier_conf.src_path }}/migrations/v0.44.2-sast-argv.json"]
+
   # CA F18, 2026-09-19 — PRE-COMMIT LEAVES THE STARS ALREADY BORN. Nothing has
   # run .pre-commit-config.yaml since F15 (hooks/pre-commit is `just check`,
   # hooks/pre-push is `just gate`, both on the engine), and Rob (2026-09-19):
