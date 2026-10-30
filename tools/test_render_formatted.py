@@ -41,9 +41,7 @@ def _ruff_pin(dest: Path) -> str:
 
 
 def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603 - fixed argv, no shell
-        argv, cwd=cwd, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 @pytest.mark.parametrize("name", CASES)
@@ -55,9 +53,17 @@ def test_render_passes_ruff(name: str, tmp_path: Path) -> None:
     assert isinstance(answers, dict)
     dest = tmp_path / "render"
     argv = [
-        uvx, "--from", COPIER, "copier", "copy", "--trust", "--skip-tasks",
-        "--vcs-ref=HEAD", "--defaults", "--quiet",
-    ]  # fmt: skip
+        uvx,
+        "--from",
+        COPIER,
+        "copier",
+        "copy",
+        "--trust",
+        "--skip-tasks",
+        "--vcs-ref=HEAD",
+        "--defaults",
+        "--quiet",
+    ]
     for key, value in answers.items():
         argv += ["--data", f"{key}={str(value).lower() if isinstance(value, bool) else value}"]
     argv += [str(ROOT), str(dest)]
