@@ -234,9 +234,10 @@ left behind.
 
 ## Related repos
 
-- **`furnace`** — owns `furnace/docs/service-repo-standard.md`, the standard
-  this template implements. Governance is not laid by a `_task`; this
-  template does not vendor or invoke furnace's kit content.
+- **`furnace`** — the composer (kit -> die). It once held
+  `docs/service-repo-standard.md`; that doc was deleted (7540647) and nothing
+  replaced it, so this template is the service-repo standard. Governance is not
+  laid by a `_task`; this template does not vendor or invoke furnace's kit content.
 - **`constellation`** — owns the `StarManifest` schema that
   `star.toml.jinja` renders against, and `stellar_core.build_admission_input`
   used by `admit.yml`.
