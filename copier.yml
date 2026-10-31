@@ -2,8 +2,8 @@
 # `mcp = true`  -> a container-ready FastMCP service (the formalized vault-mcp
 #                 shape: server.py, mcp[cli], Dockerfile/compose, deploy gate).
 # `mcp = false` -> a plain Python library / CLI: the same QA/CI/lint spine,
-#                 no service machinery. Realizes the service-repo standard:
-# furnace/docs/service-repo-standard.md. copier lays the pure-code body; the
+#                 no service machinery. Is the service-repo standard (the
+# spec doc furnace once held was deleted; no successor). copier lays the pure-code body; the
 # governance (`.claude/`, AGENTS.md) is not a copier task: it is cast on the
 # foundry-stocks landing and laid onto a host by gavel.
 

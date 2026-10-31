@@ -2,8 +2,9 @@
 
 A [copier](https://copier.readthedocs.io) template that scaffolds a standard,
 container-ready Forge Python project — either a FastMCP constellation service
-or a plain library/CLI, your choice at scaffold time. Realizes the Forge
-service-repo standard (`furnace/docs/service-repo-standard.md`). This repo is
+or a plain library/CLI, your choice at scaffold time. Is the Forge
+service-repo standard: the spec doc that once defined it was deleted from
+furnace (7540647), so what this template renders is the standard. This repo is
 the template only — it generates other repos, it does not run as a service
 itself. Pure code; the AI/governance layer (`.claude/`, `AGENTS.md`) is not a copier
 task: it is cast on the foundry-stocks landing and laid onto a host by gavel.
@@ -206,6 +207,6 @@ cd /tmp/smoke-test && uv sync --extra dev && uv run pytest
 Genesis point for every new Forge Python repo — plain library/CLI or
 constellation MCP star. Copier owns repo creation (this template); the hub
 does not own the `.claude/` AI-governance layer: it is cast on the
-foundry-stocks landing and laid onto a host by gavel. See
-`furnace/docs/service-repo-standard.md` for the standard this template
-realizes.
+foundry-stocks landing and laid onto a host by gavel. This
+template is itself the service-repo standard; the doc furnace once held for it
+(`docs/service-repo-standard.md`) was deleted and has no successor.
