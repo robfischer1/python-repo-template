@@ -19,8 +19,10 @@
 #     [tool.ruff] line-length, the fleet's one width (100, Rob 2026-10-24), so
 #     an editor's ruff formats at the width the gate grades.
 #
-# [build-system] IS KEPT, deliberately. `[tool.uv] package = false` below only
-# stops uv from trying to build a distribution that does not exist.
+# [build-system] IS KEPT, deliberately. `[tool.uv] package = false` below does
+# NOT stop `uv build` (a bare `uv build` here still reds hatchling: no package
+# directory). What it does is tell the publish lane: python:artifacts reads it
+# (foundry-tools bf5095d, 2026-10-30) and answers absent instead of building.
 #
 # IT IS NOT A PACKAGE AND DOES NOT PUBLISH. This declares an ENVIRONMENT:
 # `uv run --all-extras <tool>` is what the lane builds for a repo with a
