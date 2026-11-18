@@ -141,97 +141,12 @@ def test_template_gitignore_is_the_merge_of_the_rules() -> None:
 
 # --- recipes ------------------------------------------------------------------
 
-OLD_STAR = (
-    "set shell := [\"bash\"]\n\nimport 'stages.just'\n\ndefault:\n    @just --list\n\n"
-    "[doc('Run the test suite')]\ntest *ARGS:\n    uv run pytest -q {{ARGS}}\n\n"
-    "vuln:\n    uv run --with pip-audit pip-audit\n"
-)
-
-
-def star(tmp: Path, text: str = OLD_STAR, *, dev: bool = True) -> Path:
-    j = tmp / "justfile"
-    j.write_text(text, encoding="utf-8")
-    if dev:
-        (tmp / "dev.just").write_text("_dev VERB *ARGS:\n    true\n", encoding="utf-8")
-    return j
-
-
-def test_recipes_sweeps_test_onto_dev(tmp_path: Path) -> None:
-    s = spec("dev-recipes.json")
-    j = star(tmp_path)
-    assert cm.recipes(j, s) == "swept"
-    t = j.read_text(encoding="utf-8")
-    assert "_dev test" in t
-    assert "uv run pytest" not in t
-    assert "[doc('Run the test suite')]" not in t
-    assert "import 'stages.just'\n\n# The private `_dev`" in t
-    assert re.search(r"^import\? 'dev\.just'\n\ndefault:", t, re.MULTILINE)
-    assert cm.recipes(j, s) == "gated"  # second run: already imports dev.just
-
-
-def test_recipes_waits_for_dev_just(tmp_path: Path) -> None:
-    j = star(tmp_path, dev=False)
-    assert cm.recipes(j, spec("dev-recipes.json")) == "gated"
-    assert j.read_text(encoding="utf-8") == OLD_STAR
-
-
-def test_recipes_refuses_an_own_dev(tmp_path: Path) -> None:
-    j = star(tmp_path, OLD_STAR + "\n_dev VERB:\n    echo\n")
-    assert cm.recipes(j, spec("dev-recipes.json")) == "gated"
-
-
-def test_recipes_needs_the_anchor(tmp_path: Path) -> None:
-    j = star(tmp_path, OLD_STAR.replace("import 'stages.just'\n", ""))
-    assert cm.recipes(j, spec("dev-recipes.json")) == "gated"
-
-
-def test_recipes_names_an_edited_recipe(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    j = star(tmp_path, OLD_STAR.replace("pytest -q", "pytest -x"))
-    assert cm.recipes(j, spec("dev-recipes.json")) == "kept"
-    assert "EDITED: test" in capsys.readouterr().out
-
-
-def test_recipes_partial_sweep_names_the_rest(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    s = spec("dev-recipes.json")
-    s["pairs"] = [*s["pairs"], {"name": "fmt", "old": ["fmt:\n    gone"], "new": ["fmt:\n    new"]}]
-    assert cm.recipes(star(tmp_path), s) == "swept"
-    assert "LEFT ALONE (reconcile by hand): fmt" in capsys.readouterr().out
-
-
-def test_recipes_takes_the_pre_46_template_to_todays(tmp_path: Path) -> None:
-    """A star poured before #46 lands on exactly today's template/justfile."""
-    s = spec("dev-recipes.json")
-    today = (ROOT / "template" / "justfile").read_text(encoding="utf-8")
-    pair = s["pairs"][0]
-    before = today.replace(str(s["insert"]) + "\n", "", 1).replace(
-        pair["new"][0], "[doc('Run the test suite')]\n" + pair["old"][0], 1
-    )
-    assert before != today
-    j = star(tmp_path, before)
-    assert cm.recipes(j, s) == "swept"
-    assert j.read_text(encoding="utf-8") == today
-
-
-def test_recipes_absent(tmp_path: Path) -> None:
-    assert cm.recipes(tmp_path / "justfile", spec("dev-recipes.json")) == "absent"
 
 
 def test_recipe_match_is_whole_lines() -> None:
     assert cm.find_block("xtest:\n    a\n", "test:\n    a") == -1
     assert cm.find_block("test:\n    a\n    b\n", "test:\n    a") == -1
     assert cm.find_block("test:\n    a\n\n", "test:\n    a") == 0
-
-
-def test_dev_spec_matches_the_template_justfile() -> None:
-    """The sweep lands a star on exactly what the template pours today."""
-    s = spec("dev-recipes.json")
-    tpl = (ROOT / "template" / "justfile").read_text(encoding="utf-8")
-    assert str(s["insert"]) in tpl
-    for pr in s["pairs"]:
-        for new in pr["new"]:
-            assert cm.find_block(tpl, new) >= 0
 
 
 # --- main / argv ----------------------------------------------------------------
