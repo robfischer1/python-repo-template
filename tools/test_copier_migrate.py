@@ -142,7 +142,6 @@ def test_template_gitignore_is_the_merge_of_the_rules() -> None:
 # --- recipes ------------------------------------------------------------------
 
 
-
 def test_recipe_match_is_whole_lines() -> None:
     assert cm.find_block("xtest:\n    a\n", "test:\n    a") == -1
     assert cm.find_block("test:\n    a\n    b\n", "test:\n    a") == -1
