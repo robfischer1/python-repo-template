@@ -793,23 +793,3 @@ _migrations:
   - version: v0.39.1
     when: "{{ _stage == 'after' }}"
     command: [python3, "{{ _copier_conf.src_path }}/tools/copier_migrate.py", managed-block, .gitignore, --rules, "{{ _copier_conf.src_path }}/gitignore.rules", --name, python-repo-template, --note, ".specify/ or .claude/ already TRACKED? a rule does not evict", --note, "what is in the index - `git rm -r --cached .specify .claude`"]
-
-  # CARRY THE CLUSTER `test` RECIPE TO STARS ALREADY BORN (python-repo-template#46).
-  #
-  # #46 moved the template's `test` onto `_dev test` (dev.just, `import?`), for
-  # new stars only: justfile is `_skip_if_exists`. This is the delivery. The
-  # recipe is replaced only if the star still carries the shipped block byte for
-  # byte (its own [doc]/[positional-arguments] lines go with it); a recipe the
-  # star edited is NAMED and LEFT ALONE. (No `just --list` re-parse, unlike the
-  # go sweep: exact match swaps a shipped block for a shipped block.)
-  #
-  # GATED ON dev.just AND VERSIONLESS ON PURPOSE (the go template's DEV_SWEEP
-  # reasoning): copier runs a versioned migration only on an update that crosses
-  # its version, so a star updated before speckit laid dev.just would skip it for
-  # good. With no `version:` it runs at every update and stands down once the
-  # justfile imports dev.just. It refuses a justfile with its own `_dev`, and
-  # one without `import 'stages.just'` (the anchor the import goes after).
-  # The payload is migrations/dev-recipes.json; tools/test_copier_migrate.py
-  # pins it to template/justfile, so the two cannot drift.
-  - when: "{{ _stage == 'after' }}"
-    command: [python3, "{{ _copier_conf.src_path }}/tools/copier_migrate.py", recipes, justfile, --spec, "{{ _copier_conf.src_path }}/migrations/dev-recipes.json"]
