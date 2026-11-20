@@ -1,0 +1,9 @@
+{
+  "version": "v0.45.0",
+  "label": "cosign.pub",
+  "sha256": [
+    "4721910bb33f53822a94c8464c24ec112798eee840d06be7786867e56ff60ef8"
+  ],
+  "new": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElI6xo3z4Epg6cYpI+xFKHXAigR8a\nTv3nHY4aK/cQHVYpIAbAuP2qxyeyAM2uUSIzXHMjd7sahbeK+BuRLjP8iQ==\n-----END PUBLIC KEY-----\n",
+  "note": "fleet-cosign-1 (Infisical KMS, retired 2026-11-19) -> fleet-cosign-2 (OpenBao transit)."
+}

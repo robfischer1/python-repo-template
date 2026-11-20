@@ -793,3 +793,15 @@ _migrations:
   - version: v0.39.1
     when: "{{ _stage == 'after' }}"
     command: [python3, "{{ _copier_conf.src_path }}/tools/copier_migrate.py", managed-block, .gitignore, --rules, "{{ _copier_conf.src_path }}/gitignore.rules", --name, python-repo-template, --note, ".specify/ or .claude/ already TRACKED? a rule does not evict", --note, "what is in the index - `git rm -r --cached .specify .claude`"]
+
+# 2026-11-20 — FLEET-COSIGN-1 LEAVES THE STARS ALREADY BORN. Infisical (the KMS
+# that held fleet-cosign-1) was removed from the cluster, fleet image signing
+# moved to fleet-cosign-2 on OpenBao transit, and this template has shipped
+# fleet-cosign-2 since its last release. cosign.pub is in `_skip_if_exists`, so
+# `copier update` never reaches a born star's copy; this does. GATED ON
+# BYTE-IDENTITY: the file is rewritten only when its sha256 is fleet-cosign-1's
+# one rendering (SPKI 1c215ecb6c75bfe3); an edited or different key is named and
+# left alone. The payload is migrations/v0.45.0-cosign-pub.json.
+  - version: v0.45.0
+    when: "{{ _stage == 'after' }}"
+    command: [python3, "{{ _copier_conf.src_path }}/tools/copier_migrate.py", replace, cosign.pub, --spec, "{{ _copier_conf.src_path }}/migrations/v0.45.0-cosign-pub.json"]

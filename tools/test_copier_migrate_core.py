@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import pytest
 
 TOOL = Path(cm.__file__).resolve()
-TOOL_SHA256 = "f8453d4091673f7280bc803b51d4056dddd59b9f20cc2c20c210435ade9959ce"
+TOOL_SHA256 = "1dd6cb09ea94c34cd245bb7892fa10ac5b6c312ce680aee24bd7d8c852c79f9b"
 
 
 def test_vendored_tool_is_the_pinned_copy() -> None:
@@ -195,3 +195,35 @@ def test_main_runs_referee(tmp_path: Path) -> None:
     pkg.write_text('{"version": "1"}', encoding="utf-8")
     assert cm.main(["referee", str(pkg), "--prev", str(prev)]) == 0
     assert json.loads(pkg.read_text(encoding="utf-8"))["version"] == "9"
+
+
+# --- replace: a whole-file rewrite gated on the old rendering's sha256 ------------
+
+OLD_PEM = "-----BEGIN PUBLIC KEY-----\nold\n-----END PUBLIC KEY-----\n"
+NEW_PEM = "-----BEGIN PUBLIC KEY-----\nnew\n-----END PUBLIC KEY-----\n"
+REPLACE = {
+    "label": "key",
+    "sha256": [hashlib.sha256(OLD_PEM.encode()).hexdigest()],
+    "new": NEW_PEM,
+}
+
+
+def test_replace_rewrites_a_byte_identical_old_rendering(tmp_path: Path) -> None:
+    f = tmp_path / "cosign.pub"
+    f.write_text(OLD_PEM, encoding="utf-8")
+    assert cm.replace(f, REPLACE) == "replaced"
+    assert f.read_text(encoding="utf-8") == NEW_PEM
+
+
+def test_replace_leaves_an_edited_file_alone(tmp_path: Path) -> None:
+    f = tmp_path / "cosign.pub"
+    f.write_text(OLD_PEM + "\n", encoding="utf-8")
+    assert cm.replace(f, REPLACE) == "kept"
+    assert f.read_text(encoding="utf-8") == OLD_PEM + "\n"
+
+
+def test_replace_is_idempotent_and_skips_an_absent_file(tmp_path: Path) -> None:
+    f = tmp_path / "cosign.pub"
+    f.write_text(NEW_PEM, encoding="utf-8")
+    assert cm.replace(f, REPLACE) == "current"
+    assert cm.replace(tmp_path / "missing.pub", REPLACE) == "absent"
