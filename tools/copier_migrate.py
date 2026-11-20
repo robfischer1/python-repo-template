@@ -13,6 +13,7 @@ Verbs (each idempotent, each exits 0 when it leaves a file alone):
 
   retire PATH --spec S         delete PATH when its sha256 is in S["sha256"]
   swap PATH --spec S           replace the first S["old"] block with S["new"]
+  replace PATH --spec S        rewrite PATH to S["new"] when its sha256 is in S["sha256"]
   managed-block PATH --rules R --name N
                                merge R into PATH as N's managed block
   recipes PATH --spec S        recipe-level exact-match justfile sweep
@@ -100,6 +101,32 @@ def retire_outcome(target: Path, spec: dict[str, object]) -> str:
     say(
         f"{target} matches no rendering the templates shipped (sha256 {digest[:12]}) - "
         "LEAVING IT ALONE. Retire it by hand."
+    )
+    return "kept"
+
+
+def replace(target: Path, spec: dict[str, object]) -> str:
+    """Rewrite target to S["new"] when it is byte-identical to a shipped rendering.
+
+    Whole-file, gated on sha256 like ``retire``: a file that is already the new
+    content is ``current``, one whose digest is not listed is left alone.
+    """
+    label = str(spec.get("label", "file"))
+    if not target.exists():
+        say(f"no {target} here - nothing to replace")
+        return "absent"
+    new = strs(spec, "new")[0].encode("utf-8")
+    raw = target.read_bytes()
+    if raw == new:
+        say(f"the {label} is already current")
+        return "current"
+    if hashlib.sha256(raw).hexdigest() in set(strs(spec, "sha256")):
+        target.write_bytes(new)
+        say(f"replaced the {label}. " + str(spec.get("note", "")))
+        return "replaced"
+    say(
+        f"{target} matches no {label} this template shipped "
+        f"(sha256 {hashlib.sha256(raw).hexdigest()[:12]}) - LEAVING IT ALONE."
     )
     return "kept"
 
@@ -354,7 +381,7 @@ def parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = p.add_subparsers(dest="verb", required=True)
-    for verb in ("retire", "swap", "recipes"):
+    for verb in ("retire", "swap", "replace", "recipes"):
         s = sub.add_parser(verb)
         s.add_argument("path", type=Path)
         s.add_argument("--spec", type=Path, required=True)
@@ -380,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.verb == "referee":
         referee(a.path, a.prev)
         return 0
-    verbs = {"retire": retire, "swap": swap, "recipes": recipes}
+    verbs = {"retire": retire, "swap": swap, "replace": replace, "recipes": recipes}
     verbs[a.verb](a.path, load_spec(a.spec))
     return 0
 
