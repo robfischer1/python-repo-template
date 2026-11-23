@@ -2,15 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the vendored copier_migrate tool that every template repo shares.
-
-THIS FILE IS BYTE-IDENTICAL in python-, go-, rust- and frontend-repo-template,
-like tools/copier_migrate.py beside it. A template cannot import across repos,
-so the tool is vendored, and TOOL_SHA256 below is the drift alarm: change the
-tool in one repo and this test fails until the pin moves, which makes the edit
-a visible diff in this file; the other three repos then differ from this one.
-To change the tool, change all four copies and this pin together.
-"""
+"""Tests for the vendored copier_migrate tool that every template repo shares."""
 
 from __future__ import annotations
 
@@ -25,15 +17,13 @@ if TYPE_CHECKING:
     import pytest
 
 TOOL = Path(cm.__file__).resolve()
-TOOL_SHA256 = "1dd6cb09ea94c34cd245bb7892fa10ac5b6c312ce680aee24bd7d8c852c79f9b"
+TOOL_SHA256 = "ae75693eea008ec8449306adfc69138599187b85e30e6a6329e41f2e7aff3bc2"
 
 
 def test_vendored_tool_is_the_pinned_copy() -> None:
     """Fails when this repo's copy drifts from the one the four templates share."""
     assert hashlib.sha256(TOOL.read_bytes()).hexdigest() == TOOL_SHA256
 
-
-# --- recipes: the gates and options the go / rust / frontend sweeps need ----------
 
 JUST = "set shell := [\"bash\"]\n\nimport 'stages.just'\n\ndefault:\n    @just --list\n\n"
 PAIR = {"name": "a", "old": ["# c\na:\n    old"], "new": ["[doc('x')]\na:\n    new"]}
@@ -69,10 +59,10 @@ def test_done_new_picks_which_replacement_marks_a_recipe_done(tmp_path: Path) ->
         "new": ["# long\n[doc('l')]\na:\n    new", "[doc('s')]\na:\n    new"],
     }
     j = write(tmp_path, "[doc('s')]\na:\n    new\n\na:\n    old\n")
-    assert cm.recipes(j, {"pairs": [pair], "done_new": 1}) == "kept"  # skipped: already done
+    assert cm.recipes(j, {"pairs": [pair], "done_new": 1}) == "kept"
     j = write(tmp_path, "# long\n[doc('l')]\na:\n    new\n\na:\n    old\n")
-    assert cm.recipes(j, {"pairs": [pair], "done_new": 1}) == "swept"  # new[1] absent: sweeps
-    assert cm.recipes(j, {"pairs": [pair]}) == "kept"  # any(): new[0] present: skipped
+    assert cm.recipes(j, {"pairs": [pair], "done_new": 1}) == "swept"
+    assert cm.recipes(j, {"pairs": [pair]}) == "kept"
 
 
 def test_keep_attrs_leaves_the_doc_line_above_the_old_recipe(tmp_path: Path) -> None:
@@ -97,7 +87,7 @@ def test_lines_rewrite_everywhere_and_honour_unless(tmp_path: Path) -> None:
     assert j.read_text(encoding="utf-8") == "b:\nc:\n\na:\n    new\n"
     j = write(tmp_path, "_dirs := x\nd:\n    {{ _dirs }}\n\na:\n    old\n")
     assert cm.recipes(j, {"pairs": [pair], "lines": lines}) == "swept"
-    assert "_dirs := x\n" in j.read_text(encoding="utf-8")  # a kept recipe still reads it
+    assert "_dirs := x\n" in j.read_text(encoding="utf-8")
     j = write(tmp_path, "_dirs := x\nd:\n    echo\n\na:\n    old\n")
     assert cm.recipes(j, {"pairs": [pair], "lines": lines}) == "swept"
     assert "_dirs" not in j.read_text(encoding="utf-8")
@@ -122,9 +112,6 @@ def test_retire_epilogue_prints_on_every_outcome(
     assert "drop the dead key" in capsys.readouterr().out
 
 
-# --- referee: the star's own package.json keys survive an update ------------------
-
-
 def prev_pkg(tmp: Path, data: dict[str, Any]) -> Path:
     p = tmp / ".copier-prev" / "package.json"
     p.parent.mkdir()
@@ -146,7 +133,7 @@ def test_referee_restores_the_stars_keys_in_the_stars_order(tmp_path: Path) -> N
     out = json.loads(pkg.read_text(encoding="utf-8"))
     assert out["version"] == "1.2.3"
     assert out["devDependencies"] == {"x": "^2"}
-    assert out["scripts"] == {"a": "2"}  # the template's key stays the template's
+    assert out["scripts"] == {"a": "2"}
     assert list(out) == ["name", "version", "scripts", "devDependencies", "extra"]
     assert pkg.read_text(encoding="utf-8").endswith("}\n")
 
@@ -196,8 +183,6 @@ def test_main_runs_referee(tmp_path: Path) -> None:
     assert cm.main(["referee", str(pkg), "--prev", str(prev)]) == 0
     assert json.loads(pkg.read_text(encoding="utf-8"))["version"] == "9"
 
-
-# --- replace: a whole-file rewrite gated on the old rendering's sha256 ------------
 
 OLD_PEM = "-----BEGIN PUBLIC KEY-----\nold\n-----END PUBLIC KEY-----\n"
 NEW_PEM = "-----BEGIN PUBLIC KEY-----\nnew\n-----END PUBLIC KEY-----\n"

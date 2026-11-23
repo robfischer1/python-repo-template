@@ -2,13 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""template/.gitignore must be OPEN + gitignore.rules + CLOSE, byte for byte.
-
-gitignore.rules is the source (the copy task and the migrations read it raw);
-template/.gitignore is the same rules pre-wrapped in the managed-block markers
-so a --skip-tasks stamp still commits the block. This test fails when the two
-copies drift. Run it with `pytest test_gitignore_sync.py`.
-"""
+"""template/.gitignore must be OPEN + gitignore.rules + CLOSE, byte for byte."""
 
 from pathlib import Path
 

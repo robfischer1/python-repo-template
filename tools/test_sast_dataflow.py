@@ -2,13 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""The vendored opengrep taint rules: which sources reach the command sink.
-
-Command injection is a confused-deputy bug, so sys.argv (set by whoever already
-runs the process) is not a source for it, while HTTP request data and stdin are.
-Runs the real rules over a tiny fixture with opengrep (or semgrep, same rule
-language, via uvx when opengrep is not installed). Never skips.
-"""
+"""The vendored opengrep taint rules: which sources reach the command sink."""
 
 from __future__ import annotations
 

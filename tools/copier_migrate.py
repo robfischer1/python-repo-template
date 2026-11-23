@@ -2,32 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""copier_migrate: the one command every `_migrations` entry runs.
-
-copier.yml calls this file by path, as argv, with no inline code (Rob's atom
-law): ``python3 {{ _copier_conf.src_path }}/tools/copier_migrate.py <verb> ...``.
-It runs inside the destination tree at the `after` stage. The payload of each
-migration is data under ``migrations/`` (JSON), never code in the YAML.
-
-Verbs (each idempotent, each exits 0 when it leaves a file alone):
-
-  retire PATH --spec S         delete PATH when its sha256 is in S["sha256"]
-  swap PATH --spec S           replace the first S["old"] block with S["new"]
-  replace PATH --spec S        rewrite PATH to S["new"] when its sha256 is in S["sha256"]
-  managed-block PATH --rules R --name N
-                               merge R into PATH as N's managed block
-  recipes PATH --spec S        recipe-level exact-match justfile sweep
-  referee PATH --prev P        put the star's own package.json keys back
-                               after an update (P: the pre-update copy)
-
-THIS FILE IS VENDORED, byte-identical, in python-, go-, rust- and frontend-repo-
-template (a template cannot import across repos). tools/test_copier_migrate_core.py
-pins its sha256, so a lone edit fails there. Change all four copies together.
-
-EXACT MATCH, NEVER A GUESS. A file that matches no shape the template shipped
-is named and left alone; the star reconciles it by hand. Exit 2 is reserved for
-a bad invocation or an unreadable spec, so a broken migration fails loudly.
-"""
+"""copier_migrate: the one command every `_migrations` entry runs."""
 
 from __future__ import annotations
 
@@ -50,12 +25,7 @@ def say(msg: str) -> None:
 
 
 def load_spec(path: Path) -> dict[str, object]:
-    """Read a migration spec (a JSON object).
-
-    Raises:
-        SystemExit: the spec is unreadable or not an object (exit 2).
-
-    """
+    """Read a migration spec (a JSON object)."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
@@ -79,10 +49,7 @@ def strs(spec: dict[str, object], key: str) -> list[str]:
 
 
 def retire(target: Path, spec: dict[str, object]) -> str:
-    """Delete target when it is byte-identical to a shipped rendering.
-
-    A spec ``epilogue`` is printed whatever the outcome.
-    """
+    """Delete target when it is byte-identical to a shipped rendering."""
     outcome = retire_outcome(target, spec)
     if "epilogue" in spec:
         say(str(spec["epilogue"]))
@@ -106,11 +73,7 @@ def retire_outcome(target: Path, spec: dict[str, object]) -> str:
 
 
 def replace(target: Path, spec: dict[str, object]) -> str:
-    """Rewrite target to S["new"] when it is byte-identical to a shipped rendering.
-
-    Whole-file, gated on sha256 like ``retire``: a file that is already the new
-    content is ``current``, one whose digest is not listed is left alone.
-    """
+    """Rewrite target to S["new"] when it is byte-identical to a shipped rendering."""
     label = str(spec.get("label", "file"))
     if not target.exists():
         say(f"no {target} here - nothing to replace")
@@ -211,12 +174,7 @@ def drop_own_attrs(head: str) -> str:
 def sweep_pairs(
     text: str, pairs: list[dict[str, object]], spec: dict[str, object]
 ) -> tuple[str, list[str], list[str]]:
-    """Apply each recipe pair; return (text, swept names, edited names).
-
-    A pair is done when any of its ``new`` blocks is present, or, with the spec's
-    ``done_new`` index, when that one is. ``keep_attrs`` leaves the [doc(...)] lines
-    above a replaced recipe in place.
-    """
+    """Apply each recipe pair; return (text, swept names, edited names)."""
     swept: list[str] = []
     kept: list[str] = []
     done = spec.get("done_new")
@@ -261,11 +219,7 @@ def gate(text: str, base: Path, spec: dict[str, object]) -> str | None:
 
 
 def rewrite_lines(text: str, spec: dict[str, object]) -> str:
-    """Apply the spec's ``lines`` rewrites (every occurrence), after a sweep.
-
-    An entry with ``unless`` is skipped while that regex still matches the text:
-    a recipe the sweep kept still reads what the rewrite would remove.
-    """
+    """Apply the spec's ``lines`` rewrites (every occurrence), after a sweep."""
     entries = spec.get("lines", [])
     if not isinstance(entries, list):
         raise SystemExit(2)
@@ -278,14 +232,7 @@ def rewrite_lines(text: str, spec: dict[str, object]) -> str:
 
 
 def recipes(target: Path, spec: dict[str, object]) -> str:
-    """Sweep recipes by exact match, then insert the import after the anchor.
-
-    No `just --list` re-parse (the go template's inline sweep runs one): ruff's
-    S603 refuses a subprocess call here, and a suppression is not an option.
-    Exact match is the guard instead: every write puts a block the template
-    pours today in place of one it poured before, so the result parses
-    whenever the input did.
-    """
+    """Sweep recipes by exact match, then insert the import after the anchor."""
     if not target.exists():
         say(f"no {target} here - nothing to sweep")
         return "absent"
@@ -325,11 +272,7 @@ OWNED = (
 
 
 def referee(target: Path, prev: Path) -> str:
-    """Put the star's own package.json keys back after an update merged over them.
-
-    ``prev`` is the package.json as it stood before the update (the migration
-    before this one checks it out of the index). It is deleted when read.
-    """
+    """Put the star's own package.json keys back after an update merged over them."""
     try:
         return referee_keys(target, prev)
     finally:
