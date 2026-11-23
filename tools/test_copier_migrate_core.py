@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import pytest
 
 TOOL = Path(cm.__file__).resolve()
-TOOL_SHA256 = "1dd6cb09ea94c34cd245bb7892fa10ac5b6c312ce680aee24bd7d8c852c79f9b"
+TOOL_SHA256 = "ae75693eea008ec8449306adfc69138599187b85e30e6a6329e41f2e7aff3bc2"
 
 
 def test_vendored_tool_is_the_pinned_copy() -> None:
