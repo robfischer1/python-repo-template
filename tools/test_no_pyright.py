@@ -2,12 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""The template ships no pyright: the fleet dropped it, mypy is the one checker.
-
-foundry-tools grades python with mypy and has no pyright atom, so a pyright
-dependency, [tool.pyright] table, recipe or checklist line in a render is dead
-weight that disagrees with the gate.
-"""
+"""The template ships no pyright: the fleet dropped it, mypy is the one checker."""
 
 from __future__ import annotations
 

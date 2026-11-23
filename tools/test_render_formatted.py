@@ -2,16 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A fresh render must pass the ruff gate it ships with.
-
-The gate's ``template:render-matrix`` atom only checks present / absent / parse,
-so nothing graded the *formatting* of the rendered Python. v0.44.0 moved
-``line-length`` from 88 to 100 and left two jinja sources wrapped at 88: every
-new star was born failing ``ruff format --check``. This test renders the
-cases that carry Python and runs the render's own ruff config over them.
-
-copier and uvx are hard requirements: a missing tool FAILS, it never skips.
-"""
+"""A fresh render must pass the ruff gate it ships with."""
 
 from __future__ import annotations
 

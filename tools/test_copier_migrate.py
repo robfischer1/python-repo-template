@@ -30,9 +30,6 @@ def write_spec(tmp: Path, data: dict[str, object]) -> Path:
     return p
 
 
-# --- retire -----------------------------------------------------------------
-
-
 def test_retire_deletes_a_shipped_rendering(tmp_path: Path) -> None:
     f = tmp_path / ".pre-commit-config.yaml"
     f.write_bytes(b"repos: []\n")
@@ -58,8 +55,6 @@ def test_shipped_pre_commit_spec_carries_all_83_renderings() -> None:
     assert len(set(hashes)) == 83
     assert all(re.fullmatch(r"[0-9a-f]{64}", h) for h in hashes)
 
-
-# --- swap -------------------------------------------------------------------
 
 SWAP = {"label": "lint recipe", "old": ["OLD-A\n", "OLD-B\n"], "new": "NEW\n", "version": "v9"}
 
@@ -108,9 +103,6 @@ def test_v0_34_lint_chain_follows_v0_25() -> None:
     )
 
 
-# --- managed-block ------------------------------------------------------------
-
-
 def test_managed_block_appends_and_is_idempotent(tmp_path: Path) -> None:
     g, rules = tmp_path / ".gitignore", tmp_path / "rules"
     g.write_text("*.log\n", encoding="utf-8")
@@ -139,16 +131,10 @@ def test_template_gitignore_is_the_merge_of_the_rules() -> None:
     assert cm.merge_block("", rules, NAME) == have
 
 
-# --- recipes ------------------------------------------------------------------
-
-
 def test_recipe_match_is_whole_lines() -> None:
     assert cm.find_block("xtest:\n    a\n", "test:\n    a") == -1
     assert cm.find_block("test:\n    a\n    b\n", "test:\n    a") == -1
     assert cm.find_block("test:\n    a\n\n", "test:\n    a") == 0
-
-
-# --- main / argv ----------------------------------------------------------------
 
 
 def test_main_runs_each_verb(tmp_path: Path) -> None:
@@ -174,8 +160,6 @@ def test_main_bad_spec_exits_2(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         cm.strs({"k": [1]}, "k")
 
-
-# --- the atom law on copier.yml ---------------------------------------------------
 
 INLINE = re.compile(r"<<'|python3? -c|python3 -\s|bash -c|sh -c")
 
@@ -204,8 +188,6 @@ def test_every_spec_a_migration_names_exists() -> None:
     for ref in re.findall(r"migrations/([\w.-]+\.json)", migrations_block()):
         assert (MIG / ref).is_file(), ref
 
-
-# --- v0.44.2: sys.argv leaves the command-injection sources ---------------------
 
 SAST = ROOT / "template" / "rules" / "sast" / "dataflow.yml"
 
