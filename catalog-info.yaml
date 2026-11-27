@@ -1,0 +1,17 @@
+# Seeded once from foundry-dies (fleet/repos, capabilities/served, orbits) and
+# the live cluster by rob/backstage scripts/migrate; this file is the record
+# now. Backstage reads it from every repo on ourea (catalog-info.yaml).
+apiVersion: "backstage.io/v1alpha1"
+kind: "Component"
+metadata:
+  name: "python-repo-template"
+  description: "Copier template that scaffolds a standard, container-ready Forge Python project."
+  annotations:
+    backstage.io/source-location: "url:https://git.notusmi.com/rob/python-repo-template"
+  tags:
+    - "config"
+spec:
+  type: "config"
+  lifecycle: "experimental"
+  owner: "group:default/rob"
+  system: "forge-fleet"
