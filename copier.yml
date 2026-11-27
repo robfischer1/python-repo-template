@@ -148,6 +148,7 @@ _skip_if_exists:
   - .github/**
   - rules/**
   - cosign.pub
+  - catalog-info.yaml
 
 project_name:
   type: str
