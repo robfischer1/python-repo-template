@@ -1,0 +1,14 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: {{ service_name | tojson }}
+  description: {{ description | tojson }}
+  annotations:
+    backstage.io/source-location: {{ ("url:https://git.notusmi.com/rob/" ~ service_name) | tojson }}
+  tags:
+    - "python"
+spec:
+  type: {{ ('service' if variant == 'star' else 'library') | tojson }}
+  lifecycle: "experimental"
+  owner: "group:default/rob"
+  system: "forge-fleet"
